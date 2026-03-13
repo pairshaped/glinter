@@ -11,15 +11,31 @@ pub fn walk_module(
   _source: String,
   file: String,
 ) -> List(LintResult) {
-  module.functions
-  |> list.flat_map(fn(def) {
-    let func = def.definition
-    let function_results = run_function_rules(func, rules)
-    let body_results =
-      func.body
-      |> list.flat_map(fn(stmt) { walk_statement(stmt, rules) })
-    list.append(function_results, body_results)
-  })
+  let module_results =
+    rules
+    |> list.flat_map(fn(r) {
+      case r.check_module {
+        Some(check) ->
+          check(module)
+          |> list.map(fn(result) {
+            LintResult(..result, severity: r.default_severity)
+          })
+        None -> []
+      }
+    })
+
+  let function_results =
+    module.functions
+    |> list.flat_map(fn(def) {
+      let func = def.definition
+      let fn_results = run_function_rules(func, rules)
+      let body_results =
+        func.body
+        |> list.flat_map(fn(stmt) { walk_statement(stmt, rules) })
+      list.append(fn_results, body_results)
+    })
+
+  list.append(module_results, function_results)
   |> list.map(fn(result) { LintResult(..result, file: file) })
 }
 
@@ -30,7 +46,11 @@ fn run_function_rules(
   rules
   |> list.flat_map(fn(r) {
     case r.check_function {
-      Some(check) -> check(func)
+      Some(check) ->
+        check(func)
+        |> list.map(fn(result) {
+          LintResult(..result, severity: r.default_severity)
+        })
       None -> []
     }
   })
@@ -41,7 +61,11 @@ fn walk_statement(stmt: Statement, rules: List(Rule)) -> List(LintResult) {
     rules
     |> list.flat_map(fn(r) {
       case r.check_statement {
-        Some(check) -> check(stmt)
+        Some(check) ->
+          check(stmt)
+          |> list.map(fn(result) {
+            LintResult(..result, severity: r.default_severity)
+          })
         None -> []
       }
     })
@@ -61,7 +85,11 @@ fn walk_expression(expr: Expression, rules: List(Rule)) -> List(LintResult) {
     rules
     |> list.flat_map(fn(r) {
       case r.check_expression {
-        Some(check) -> check(expr)
+        Some(check) ->
+          check(expr)
+          |> list.map(fn(result) {
+            LintResult(..result, severity: r.default_severity)
+          })
         None -> []
       }
     })

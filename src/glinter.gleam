@@ -32,7 +32,7 @@ pub fn main() {
 
   let files = discover_files(paths)
 
-  let #(results, sources) =
+  let #(rev_results, rev_sources) =
     files
     |> list.fold(#([], []), fn(acc, file_path) {
       let #(acc_results, acc_sources) = acc
@@ -57,7 +57,7 @@ pub fn main() {
               let file_results =
                 walker.walk_module(module, active_rules, source, file_path)
               #(
-                list.append(acc_results, file_results),
+                list.append(list.reverse(file_results), acc_results),
                 [#(file_path, source), ..acc_sources],
               )
             }
@@ -65,6 +65,8 @@ pub fn main() {
         }
       }
     })
+  let results = list.reverse(rev_results)
+  let sources = list.reverse(rev_sources)
 
   let output = case format {
     Text -> reporter.format_text(results, sources)

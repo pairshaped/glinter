@@ -24,10 +24,8 @@ pub fn byte_offset_to_line(source: String, offset: Int) -> Int {
       case bit_array.to_string(bytes) {
         Ok(s) ->
           s
-          |> string.to_graphemes()
-          |> list.filter(fn(c) { c == "\n" })
+          |> string.split("\n")
           |> list.length()
-          |> int.add(1)
         Error(_) -> 1
       }
     Error(_) -> 1

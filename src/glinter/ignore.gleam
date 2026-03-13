@@ -42,6 +42,6 @@ fn segment_matches(segment: String, pattern: String) -> Bool {
     [prefix, suffix] ->
       string.starts_with(segment, prefix)
       && string.ends_with(segment, suffix)
-    _ -> segment == pattern
+    _ -> False
   }
 }

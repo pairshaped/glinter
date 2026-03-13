@@ -2,7 +2,7 @@ import glance
 import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
-import glinter/rule.{type LintResult, Error, LintResult, Rule}
+import glinter/rule.{type LintResult, Error, LintResult, Rule, Warning}
 import glinter/walker
 
 /// Helper: parse source and run walker with given rules
@@ -61,4 +61,13 @@ pub fn walk_fills_in_file_field_test() {
   let results = lint_string("pub fn bad() { panic }", [panic_rule()])
   let assert [result] = results
   result.file |> should.equal("test.gleam")
+}
+
+pub fn walk_applies_rule_severity_override_test() {
+  // Rule hardcodes Error in its check fn, but default_severity is Warning
+  let overridden_rule =
+    Rule(..panic_rule(), default_severity: Warning)
+  let results = lint_string("pub fn bad() { panic }", [overridden_rule])
+  let assert [result] = results
+  result.severity |> should.equal(Warning)
 }
