@@ -15,31 +15,23 @@ pub fn rule() -> Rule {
 
 fn check(func: glance.Function) -> List(rule.LintResult) {
   case func.body {
-    // Function body is a single expression statement containing a Case
-    [glance.Expression(glance.Case(location, _, clauses))] ->
-      case clauses {
-        [clause_a, clause_b] ->
-          case clause_a.guard, clause_b.guard {
-            None, None ->
-              case is_bool_pair(clause_a, clause_b) {
-                True ->
-                  case has_simple_branch(clause_a, clause_b) {
-                    True -> [
-                      LintResult(
-                        rule: "prefer_guard_clause",
-                        severity: Warning,
-                        file: "",
-                        location: location,
-                        message: "Consider using 'use <- bool.guard' instead of case True/False",
-                      ),
-                    ]
-                    False -> []
-                  }
-                False -> []
-              }
-            _, _ -> []
-          }
-        _ -> []
+    [glance.Expression(glance.Case(location, _, [clause_a, clause_b]))] ->
+      case
+        clause_a.guard == None
+        && clause_b.guard == None
+        && is_bool_pair(clause_a, clause_b)
+        && has_simple_branch(clause_a, clause_b)
+      {
+        True -> [
+          LintResult(
+            rule: "prefer_guard_clause",
+            severity: Warning,
+            file: "",
+            location: location,
+            message: "Consider using 'use <- bool.guard' instead of case True/False",
+          ),
+        ]
+        False -> []
       }
     _ -> []
   }

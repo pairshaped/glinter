@@ -11,7 +11,15 @@ short_variable_name = "warning"
 unnecessary_variable = "warning"
 redundant_case = "warning"
 unwrap_used = "warning"
+deep_nesting = "warning"
+function_complexity = "warning"
+module_complexity = "warning"
+prefer_guard_clause = "warning"
 
 # Ignore rules for specific file patterns
-# [ignore]
-# "test/**/*.gleam" = ["avoid_todo"]
+# AST traversal code is inherently complex — suppress complexity warnings
+[ignore]
+"src/glinter/walker.gleam" = ["deep_nesting", "function_complexity"]
+"src/glinter/analysis.gleam" = ["deep_nesting", "function_complexity"]
+"src/glinter/rules/deep_nesting.gleam" = ["deep_nesting", "function_complexity"]
+"src/glinter/config.gleam" = ["deep_nesting"]

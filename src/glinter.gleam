@@ -12,8 +12,12 @@ import glinter/rule.{type Rule}
 import glinter/rules/assert_ok_pattern
 import glinter/rules/avoid_panic
 import glinter/rules/avoid_todo
+import glinter/rules/deep_nesting
 import glinter/rules/discarded_result
 import glinter/rules/echo_rule
+import glinter/rules/function_complexity
+import glinter/rules/module_complexity
+import glinter/rules/prefer_guard_clause
 import glinter/rules/redundant_case
 import glinter/rules/short_variable_name
 import glinter/rules/unnecessary_variable
@@ -37,6 +41,10 @@ pub fn main() {
     unnecessary_variable.rule(),
     redundant_case.rule(),
     unwrap_used.rule(),
+    deep_nesting.rule(),
+    function_complexity.rule(),
+    module_complexity.rule(),
+    prefer_guard_clause.rule(),
   ]
   let rules = apply_config(all_rules, cfg)
 
@@ -46,33 +54,13 @@ pub fn main() {
     files
     |> list.fold(#([], []), fn(acc, file_path) {
       let #(acc_results, acc_sources) = acc
-      case simplifile.read(file_path) {
-        Error(_) -> {
-          io.println_error("Error: Could not read " <> file_path)
-          acc
-        }
-        Ok(source) -> {
-          let active_rules =
-            rules
-            |> list.filter(fn(r) {
-              !ignore.is_rule_ignored(file_path, r.name, cfg.ignore)
-            })
-
-          case glance.module(source) {
-            Error(_) -> {
-              io.println_error("Error: Failed to parse " <> file_path)
-              acc
-            }
-            Ok(module) -> {
-              let file_results =
-                walker.walk_module(module, active_rules, source, file_path)
-              #(
-                list.append(list.reverse(file_results), acc_results),
-                [#(file_path, source), ..acc_sources],
-              )
-            }
-          }
-        }
+      case lint_file(file_path, rules, cfg) {
+        Ok(#(file_results, source)) ->
+          #(
+            list.append(list.reverse(file_results), acc_results),
+            [#(file_path, source), ..acc_sources],
+          )
+        Error(_) -> acc
       }
     })
   let results = list.reverse(rev_results)
@@ -135,6 +123,37 @@ fn load_config(path: String) -> config.Config {
         }
         Ok(cfg) -> cfg
       }
+  }
+}
+
+fn lint_file(
+  file_path: String,
+  rules: List(Rule),
+  cfg: config.Config,
+) -> Result(#(List(rule.LintResult), String), Nil) {
+  case simplifile.read(file_path) {
+    Error(_) -> {
+      io.println_error("Error: Could not read " <> file_path)
+      Error(Nil)
+    }
+    Ok(source) -> {
+      let active_rules =
+        rules
+        |> list.filter(fn(r) {
+          !ignore.is_rule_ignored(file_path, r.name, cfg.ignore)
+        })
+      case glance.module(source) {
+        Error(_) -> {
+          io.println_error("Error: Failed to parse " <> file_path)
+          Error(Nil)
+        }
+        Ok(module) -> {
+          let file_results =
+            walker.walk_module(module, active_rules, source, file_path)
+          Ok(#(file_results, source))
+        }
+      }
+    }
   }
 }
 

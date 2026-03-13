@@ -29,35 +29,26 @@ fn check_expression(expr: glance.Expression) -> List(rule.LintResult) {
 fn check_trailing_let(
   stmts: List(glance.Statement),
 ) -> List(rule.LintResult) {
-  let reversed = list.reverse(stmts)
-  case reversed {
-    [last, second_last, ..] -> {
-      case second_last, last {
-        glance.Assignment(
-          location: location,
-          pattern: glance.PatternVariable(_, name),
-          ..
-        ),
-          glance.Expression(glance.Variable(_, var_name))
-        -> {
-          case name == var_name {
-            True -> [
-              LintResult(
-                rule: "unnecessary_variable",
-                severity: Warning,
-                file: "",
-                location: location,
-                message: "Variable '"
-                  <> name
-                  <> "' is immediately returned — just use the expression directly",
-              ),
-            ]
-            False -> []
-          }
-        }
-        _, _ -> []
-      }
-    }
+  case list.reverse(stmts) {
+    [
+      glance.Expression(glance.Variable(_, var_name)),
+      glance.Assignment(
+        location: location,
+        pattern: glance.PatternVariable(_, name),
+        ..
+      ),
+      ..
+    ] if name == var_name -> [
+      LintResult(
+        rule: "unnecessary_variable",
+        severity: Warning,
+        file: "",
+        location: location,
+        message: "Variable '"
+          <> name
+          <> "' is immediately returned — just use the expression directly",
+      ),
+    ]
     _ -> []
   }
 }
