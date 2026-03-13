@@ -1,0 +1,12 @@
+# glinter configuration
+# Set rules to "error", "warning", or "off"
+
+[rules]
+avoid_panic = "error"
+avoid_todo = "error"
+echo = "warning"
+assert_ok_pattern = "warning"
+
+# Ignore rules for specific file patterns
+# [ignore]
+# "test/**/*.gleam" = ["avoid_todo"]
