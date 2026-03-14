@@ -29,8 +29,10 @@ import glinter/walker
 import simplifile
 
 pub fn main() {
+  let start_time = monotonic_time_ms()
   let args = argv.load().arguments
-  let #(format, config_path, project_prefix, paths) = parse_args(args)
+  let #(format, config_path, project_prefix, show_stats, paths) =
+    parse_args(args)
 
   let cfg = load_config(config_path)
 
@@ -82,9 +84,16 @@ pub fn main() {
     run_unused_exports(sources, project_prefix, cfg)
   let results = list.append(per_file_results, unused_export_results)
 
+  let elapsed_ms = monotonic_time_ms() - start_time
+  let stats = reporter.Stats(
+    file_count: list.length(sources),
+    line_count: count_lines(sources),
+    elapsed_ms: elapsed_ms,
+  )
+
   let output = case format {
-    Text -> reporter.format_text(results, sources)
-    Json -> reporter.format_json(results, sources)
+    Text -> reporter.format_text(results, sources, show_stats, stats)
+    Json -> reporter.format_json(results, sources, show_stats, stats)
   }
   io.println(output)
 
@@ -95,13 +104,20 @@ pub fn main() {
   }
 }
 
+fn count_lines(sources: List(#(String, String))) -> Int {
+  sources
+  |> list.fold(0, fn(acc, s) {
+    acc + { string.split(s.1, "\n") |> list.length }
+  })
+}
+
 /// Parse CLI arguments into (format, config_path, project_prefix, paths).
 /// project_prefix is "" when no --project is given, or "dir/" when it is.
 fn parse_args(
   args: List(String),
-) -> #(reporter.Format, String, String, List(String)) {
-  let #(format, config_path, project_dir, paths) =
-    parse_args_loop(args, Text, "glinter.toml", None, [])
+) -> #(reporter.Format, String, String, Bool, List(String)) {
+  let #(format, config_path, project_dir, show_stats, paths) =
+    parse_args_loop(args, Text, "glinter.toml", None, False, [])
 
   case project_dir {
     Some(dir) -> {
@@ -124,14 +140,14 @@ fn parse_args(
             }
           })
       }
-      #(format, resolved_config, prefix, resolved_paths)
+      #(format, resolved_config, prefix, show_stats, resolved_paths)
     }
     None -> {
       let resolved_paths = case paths {
         [] -> ["src/"]
         _ -> list.reverse(paths)
       }
-      #(format, config_path, "", resolved_paths)
+      #(format, config_path, "", show_stats, resolved_paths)
     }
   }
 }
@@ -141,20 +157,26 @@ fn parse_args_loop(
   format: reporter.Format,
   config_path: String,
   project_dir: option.Option(String),
+  show_stats: Bool,
   paths: List(String),
-) -> #(reporter.Format, String, option.Option(String), List(String)) {
+) -> #(reporter.Format, String, option.Option(String), Bool, List(String)) {
   case args {
-    [] -> #(format, config_path, project_dir, paths)
+    [] -> #(format, config_path, project_dir, show_stats, paths)
     ["--format", "json", ..rest] ->
-      parse_args_loop(rest, Json, config_path, project_dir, paths)
+      parse_args_loop(rest, Json, config_path, project_dir, show_stats, paths)
     ["--format", "text", ..rest] ->
-      parse_args_loop(rest, Text, config_path, project_dir, paths)
+      parse_args_loop(rest, Text, config_path, project_dir, show_stats, paths)
     ["--config", path, ..rest] ->
-      parse_args_loop(rest, format, path, project_dir, paths)
+      parse_args_loop(rest, format, path, project_dir, show_stats, paths)
     ["--project", dir, ..rest] ->
-      parse_args_loop(rest, format, config_path, Some(dir), paths)
+      parse_args_loop(rest, format, config_path, Some(dir), show_stats, paths)
+    ["--stats", ..rest] ->
+      parse_args_loop(rest, format, config_path, project_dir, True, paths)
     [path, ..rest] ->
-      parse_args_loop(rest, format, config_path, project_dir, [path, ..paths])
+      parse_args_loop(rest, format, config_path, project_dir, show_stats, [
+        path,
+        ..paths
+      ])
   }
 }
 
@@ -320,3 +342,6 @@ fn run_unused_exports(
 
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
+
+@external(erlang, "glinter_ffi", "monotonic_time_ms")
+fn monotonic_time_ms() -> Int

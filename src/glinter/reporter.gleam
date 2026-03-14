@@ -11,6 +11,10 @@ pub type Format {
   Json
 }
 
+pub type Stats {
+  Stats(file_count: Int, line_count: Int, elapsed_ms: Int)
+}
+
 /// Convert byte offset to line number (1-indexed)
 pub fn byte_offset_to_line(source: String, offset: Int) -> Int {
   let source_bytes = <<source:utf8>>
@@ -56,6 +60,8 @@ pub fn sort_results(
 pub fn format_text(
   results: List(LintResult),
   sources: List(#(String, String)),
+  show_stats: Bool,
+  stats: Stats,
 ) -> String {
   let sorted = sort_results(results, sources)
   let lines =
@@ -94,15 +100,22 @@ pub fn format_text(
     <> pluralize(warning_count, "warning", "warnings")
     <> ")"
 
+  let stats_line = case show_stats {
+    True -> "\n" <> format_stats_text(stats)
+    False -> ""
+  }
+
   case lines {
-    [] -> "No issues found."
-    _ -> string.join(lines, "\n") <> "\n" <> summary
+    [] -> "No issues found." <> stats_line
+    _ -> string.join(lines, "\n") <> "\n" <> summary <> stats_line
   }
 }
 
 pub fn format_json(
   results: List(LintResult),
   sources: List(#(String, String)),
+  show_stats: Bool,
+  stats: Stats,
 ) -> String {
   let sorted = sort_results(results, sources)
   let error_count =
@@ -123,7 +136,7 @@ pub fn format_json(
       ])
     })
 
-  json.object([
+  let base = [
     #("results", json.array(result_objects, fn(x) { x })),
     #(
       "summary",
@@ -133,8 +146,52 @@ pub fn format_json(
         #("warnings", json.int(warning_count)),
       ]),
     ),
-  ])
+  ]
+
+  let fields = case show_stats {
+    True ->
+      list.append(base, [
+        #(
+          "stats",
+          json.object([
+            #("files", json.int(stats.file_count)),
+            #("lines", json.int(stats.line_count)),
+            #("elapsed_ms", json.int(stats.elapsed_ms)),
+          ]),
+        ),
+      ])
+    False -> base
+  }
+
+  json.object(fields)
   |> json.to_string()
+}
+
+fn format_stats_text(stats: Stats) -> String {
+  "Linted "
+  <> format_number(stats.file_count)
+  <> " "
+  <> pluralize(stats.file_count, "file", "files")
+  <> " ("
+  <> format_number(stats.line_count)
+  <> " "
+  <> pluralize(stats.line_count, "line", "lines")
+  <> ") in "
+  <> int.to_string(stats.elapsed_ms)
+  <> "ms"
+}
+
+fn format_number(n: Int) -> String {
+  case n < 1000 {
+    True -> int.to_string(n)
+    False -> {
+      let thousands = n / 1000
+      let remainder = n % 1000
+      int.to_string(thousands)
+      <> ","
+      <> string.pad_start(int.to_string(remainder), to: 3, with: "0")
+    }
+  }
 }
 
 fn severity_to_string(severity: Severity) -> String {
