@@ -24,10 +24,33 @@ gleam run -m glinter --format json
 gleam run -m glinter --stats
 
 # Lint a different project (resolves gleam.toml and paths relative to project dir)
-gleam run -m glinter --project /path/to/my/project server/src shared/src
+gleam run -m glinter --project /path/to/my/project
 ```
 
 The exit code is `1` if any issues are found, `0` otherwise.
+
+### Multi-Package Projects
+
+For monorepos with multiple Gleam packages, add glinter as a dev dependency to one package (e.g. server) and lint each package separately using `--project`:
+
+```sh
+# From any directory, lint each package
+gleam run -m glinter --project server
+gleam run -m glinter --project client
+gleam run -m glinter --project shared
+```
+
+Each package uses its own `gleam.toml` for configuration. You can wrap this in a script to lint all packages at once:
+
+```sh
+#!/bin/sh
+# bin/lint
+set -e
+for pkg in server client shared; do
+  echo "Linting $pkg..."
+  gleam run -m glinter --project "$pkg"
+done
+```
 
 ## Rules
 
