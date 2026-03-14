@@ -23,8 +23,10 @@ import glinter/rules/short_variable_name
 import glinter/rules/unnecessary_variable
 import glinter/rules/unwrap_used
 import glinter/rules/label_possible
+import glinter/rules/large_tuple
 import glinter/rules/missing_labels
 import glinter/rules/missing_type_annotation
+import glinter/rules/todo_without_message
 import glinter/unused_exports
 import glinter/walker
 import simplifile
@@ -55,6 +57,8 @@ pub fn main() {
     label_possible.rule(),
     missing_labels.rule(),
     missing_type_annotation.rule(),
+    large_tuple.rule(),
+    todo_without_message.rule(),
   ]
   let rules = apply_config(all_rules, cfg)
 
