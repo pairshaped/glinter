@@ -169,6 +169,12 @@ When `--stats` is enabled, a `stats` object is included:
 }
 ```
 
+## Roadmap
+
+- **Stateful rule interface**: change the check callbacks to a fold-like interface so rules can accumulate state across AST nodes, support multiple passes, and early termination. The current stateless `fn(Node) -> List(LintResult)` interface works for pattern-matching rules but limits what's possible.
+- **FFI safety lint**: detect use of private Gleam data API internals in JS FFI files (e.g. accessing tuple elements by index or matching on internal constructor representations).
+- **Dynamic SQL detection**: flag string concatenation used to build SQL queries, which risks SQL injection.
+
 ## Running Tests
 
 ```sh
