@@ -90,6 +90,9 @@ done
 Configuration lives in your project's `gleam.toml` under the `[tools.glinter]` key:
 
 ```toml
+[tools.glinter]
+stats = true  # show file count, line count, and timing after each run
+
 [tools.glinter.rules]
 avoid_panic = "error"
 avoid_todo = "error"
