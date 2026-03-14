@@ -2,7 +2,7 @@ name = "glinter"
 version = "0.1.0"
 description = "A linter for the Gleam programming language with 15 configurable rules"
 licences = ["MIT"]
-repository = { type = "github", user = "pairshaped", repo = "gleam-linter" }
+repository = { type = "github", user = "pairshaped", repo = "glinter" }
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
