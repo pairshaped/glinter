@@ -33,44 +33,34 @@ The exit code is `1` if any issues are found, `0` otherwise.
 
 ### Code Quality
 
-| Rule | Default | Description |
-|------|---------|-------------|
-| `avoid_panic` | error | Flags uses of `panic` |
-| `avoid_todo` | error | Flags uses of `todo` |
-| `echo` | warning | Flags uses of `echo` (debug output) |
-| `assert_ok_pattern` | warning | Flags `let assert` assignments |
-| `unwrap_used` | warning | Flags `result.unwrap`, `option.unwrap`, and lazy variants |
+- **avoid_panic** (error): flags uses of `panic`
+- **avoid_todo** (error): flags uses of `todo`
+- **echo** (warning): flags uses of `echo` (debug output)
+- **assert_ok_pattern** (warning): flags `let assert` assignments
+- **unwrap_used** (warning): flags `result.unwrap`, `option.unwrap`, and lazy variants
 
 ### Style
 
-| Rule | Default | Description |
-|------|---------|-------------|
-| `discarded_result` | warning | Flags `let _ = expr` (discarded results) |
-| `short_variable_name` | warning | Flags single-character variable names in let bindings |
-| `unnecessary_variable` | warning | Flags `let x = expr; x` — variable assigned then immediately returned |
-| `redundant_case` | warning | Flags `case` expressions with a single branch and no guard |
-| `prefer_guard_clause` | warning | Flags `case bool { True -> ... False -> ... }` patterns that could use `bool.guard` |
+- **discarded_result** (warning): flags `let _ = expr` (discarded results)
+- **short_variable_name** (warning): flags single-character variable names in let bindings
+- **unnecessary_variable** (warning): flags `let x = expr; x` (assigned then immediately returned)
+- **redundant_case** (warning): flags `case` expressions with a single branch and no guard
+- **prefer_guard_clause** (warning): flags `case bool { True -> ... False -> ... }` patterns that could use `bool.guard`
 
 ### Complexity
 
-| Rule | Default | Description |
-|------|---------|-------------|
-| `deep_nesting` | warning | Flags nesting deeper than 5 levels |
-| `function_complexity` | warning | Flags functions with more than 10 branching nodes |
-| `module_complexity` | warning | Flags modules with more than 50 total branching nodes |
+- **deep_nesting** (warning): flags nesting deeper than 5 levels
+- **function_complexity** (warning): flags functions with more than 10 branching nodes
+- **module_complexity** (warning): flags modules with more than 50 total branching nodes
 
 ### Labels
 
-| Rule | Default | Description |
-|------|---------|-------------|
-| `label_possible` | warning | Flags unlabeled parameters in functions with 2+ parameters |
-| `missing_labels` | warning | Flags calls to same-module functions that omit defined labels |
+- **label_possible** (warning): flags unlabeled parameters in functions with 2+ parameters
+- **missing_labels** (warning): flags calls to same-module functions that omit defined labels
 
 ### Cross-Module
 
-| Rule | Default | Description |
-|------|---------|-------------|
-| `unused_exports` | warning | Flags `pub` functions, constants, and types never referenced from another module. Uses cross-module import graph analysis — test files count as consumers, `main` is excluded. |
+- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded.
 
 ## Configuration
 
