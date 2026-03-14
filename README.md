@@ -5,8 +5,8 @@ A linter for the [Gleam](https://gleam.run) programming language. It parses Glea
 ## Installation
 
 ```sh
-git clone https://github.com/pairshaped/gleam-linter.git
-cd gleam-linter
+git clone https://github.com/pairshaped/glinter.git
+cd glinter
 gleam build
 ```
 
@@ -118,6 +118,10 @@ gleam run -m glinter --format json
 ```
 
 Returns a JSON array of issues with file path, line, column, rule, severity, and message.
+
+## Roadmap
+
+- **Unused exports** — detect `pub` functions, constants, and types with no inbound references across the project. Requires cross-module import graph analysis (unlike existing rules which are per-file AST checks).
 
 ## Running Tests
 
