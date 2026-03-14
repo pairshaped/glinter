@@ -35,6 +35,7 @@ prefer_guard_clause = "warning"
 missing_labels = "warning"
 label_possible = "warning"
 unused_exports = "warning"
+missing_type_annotation = "warning"
 
 # Ignore rules for specific file patterns
 # AST traversal code is inherently complex — suppress complexity warnings

@@ -62,6 +62,10 @@ done
 - **assert_ok_pattern** (warning): flags `let assert` assignments
 - **unwrap_used** (warning): flags `result.unwrap`, `option.unwrap`, and lazy variants
 
+### Type Annotations
+
+- **missing_type_annotation** (warning): flags functions missing return type annotations or with untyped parameters
+
 ### Style
 
 - **discarded_result** (warning): flags `let _ = expr` (discarded results)
@@ -110,6 +114,7 @@ prefer_guard_clause = "warning"
 missing_labels = "warning"
 label_possible = "warning"
 unused_exports = "warning"
+missing_type_annotation = "warning"
 ```
 
 Each rule can be set to `"error"`, `"warning"`, or `"off"`.
