@@ -62,6 +62,8 @@ done
 - **assert_ok_pattern** (warning): flags `let assert` assignments
 - **unwrap_used** (warning): flags `result.unwrap`, `option.unwrap`, and lazy variants
 - **todo_without_message** (warning): flags `todo` without a descriptive message
+- **panic_without_message** (warning): flags `panic` without a descriptive message
+- **string_inspect** (warning): flags `string.inspect` usage (debug output)
 
 ### Type Annotations
 
@@ -89,6 +91,7 @@ done
 ### Imports
 
 - **unqualified_import** (warning): flags unqualified value imports (e.g. `import mod.{func}`). Gleam convention is to use qualified access (`mod.func`). Type imports (`import mod.{type MyType}`) are not flagged.
+- **duplicate_import** (warning): flags importing the same module more than once in a file
 
 ### Cross-Module
 
@@ -124,6 +127,9 @@ unused_exports = "warning"
 missing_type_annotation = "warning"
 todo_without_message = "warning"
 unqualified_import = "warning"
+panic_without_message = "warning"
+string_inspect = "warning"
+duplicate_import = "warning"
 ```
 
 Each rule can be set to `"error"`, `"warning"`, or `"off"`.

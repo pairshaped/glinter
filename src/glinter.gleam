@@ -14,17 +14,20 @@ import glinter/rules/avoid_panic
 import glinter/rules/avoid_todo
 import glinter/rules/deep_nesting
 import glinter/rules/discarded_result
+import glinter/rules/duplicate_import
 import glinter/rules/echo_rule
 import glinter/rules/function_complexity
 import glinter/rules/module_complexity
 import glinter/rules/prefer_guard_clause
 import glinter/rules/redundant_case
 import glinter/rules/short_variable_name
+import glinter/rules/string_inspect
 import glinter/rules/unnecessary_variable
 import glinter/rules/unwrap_used
 import glinter/rules/label_possible
 import glinter/rules/missing_labels
 import glinter/rules/missing_type_annotation
+import glinter/rules/panic_without_message
 import glinter/rules/todo_without_message
 import glinter/rules/unqualified_import
 import glinter/unused_exports
@@ -57,6 +60,9 @@ pub fn main() {
     label_possible.rule(),
     missing_labels.rule(),
     missing_type_annotation.rule(),
+    panic_without_message.rule(),
+    string_inspect.rule(),
+    duplicate_import.rule(),
     todo_without_message.rule(),
     unqualified_import.rule(),
   ]
