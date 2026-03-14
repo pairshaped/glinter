@@ -101,7 +101,7 @@ fn parse_args(
   args: List(String),
 ) -> #(reporter.Format, String, String, List(String)) {
   let #(format, config_path, project_dir, paths) =
-    parse_args_loop(args, Text, "gleam_lint.toml", None, [])
+    parse_args_loop(args, Text, "glinter.toml", None, [])
 
   case project_dir {
     Some(dir) -> {
@@ -110,7 +110,7 @@ fn parse_args(
         False -> dir <> "/"
       }
       let resolved_config = case config_path {
-        "gleam_lint.toml" -> prefix <> "gleam_lint.toml"
+        "glinter.toml" -> prefix <> "glinter.toml"
         other -> other
       }
       let resolved_paths = case paths {

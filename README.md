@@ -76,7 +76,7 @@ The exit code is `1` if any issues are found, `0` otherwise.
 
 ## Configuration
 
-Create a `gleam_lint.toml` file in your project root:
+Create a `glinter.toml` file in your project root:
 
 ```toml
 [rules]
