@@ -206,7 +206,6 @@ When `--stats` is enabled, a `stats` object is included:
 - **Dynamic SQL detection**: flag string concatenation used to build SQL queries, which risks SQL injection.
 - **Per-directory rule overrides**: apply different rule configs to different directories (e.g. permissive rules for `test/` where `let assert`, short names, and missing labels are idiomatic).
 - **Abbreviation detection**: extend `short_variable_name` to flag common abbreviations (e.g. `req`, `ctx`, `cfg`) beyond single characters.
-- **Check-then-assert detection**: flag patterns like `case is_valid(x) { True -> let assert ... }` where pattern matching would be more idiomatic. Needs stateful traversal.
 
 ## Running Tests
 
