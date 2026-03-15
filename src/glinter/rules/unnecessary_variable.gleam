@@ -3,7 +3,7 @@ import gleam/list
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(name: "unnecessary_variable", default_severity: Warning, check: check)
+  Rule(name: "unnecessary_variable", default_severity: Warning, needs_collect: True, check: check)
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {

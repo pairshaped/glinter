@@ -4,7 +4,7 @@ import gleam/string
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(name: "short_variable_name", default_severity: Warning, check: check)
+  Rule(name: "short_variable_name", default_severity: Warning, needs_collect: True, check: check)
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {

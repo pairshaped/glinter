@@ -7,7 +7,7 @@ import glinter/rule.{type Rule, LintResult, Rule, Warning}
 const threshold = 10
 
 pub fn rule() -> Rule {
-  Rule(name: "function_complexity", default_severity: Warning, check: check)
+  Rule(name: "function_complexity", default_severity: Warning, needs_collect: False, check: check)
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {

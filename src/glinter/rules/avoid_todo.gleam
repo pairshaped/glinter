@@ -3,7 +3,7 @@ import gleam/list
 import glinter/rule.{type Rule, Error, LintResult, Rule}
 
 pub fn rule() -> Rule {
-  Rule(name: "avoid_todo", default_severity: Error, check: check)
+  Rule(name: "avoid_todo", default_severity: Error, needs_collect: True, check: check)
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {

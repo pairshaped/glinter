@@ -40,7 +40,7 @@ fn check_for_panic(
 
 /// A dummy rule that flags every Panic expression
 fn panic_rule() -> rule.Rule {
-  Rule(name: "test_panic", default_severity: Error, check: check_for_panic)
+  Rule(name: "test_panic", default_severity: Error, needs_collect: True, check: check_for_panic)
 }
 
 pub fn walk_finds_panic_in_function_test() {

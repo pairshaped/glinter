@@ -4,7 +4,7 @@ import gleam/string
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(name: "unqualified_import", default_severity: Warning, check: check)
+  Rule(name: "unqualified_import", default_severity: Warning, needs_collect: False, check: check)
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {

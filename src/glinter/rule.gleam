@@ -29,6 +29,10 @@ pub type Rule {
   Rule(
     name: String,
     default_severity: Severity,
+    /// Whether this rule uses the pre-collected expression/statement lists.
+    /// When False, walker.collect() can be skipped if no other active rule
+    /// needs it.
+    needs_collect: Bool,
     check: fn(ModuleData, String) -> List(LintResult),
   )
 }

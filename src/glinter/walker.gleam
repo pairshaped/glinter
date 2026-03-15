@@ -7,6 +7,12 @@ import gleam/list
 import gleam/option.{None, Some}
 import glinter/rule.{type ModuleData, ModuleData}
 
+/// Wrap a module without collecting expressions or statements.
+/// Use when no active rules need expression/statement lists.
+pub fn module_only(module: Module) -> ModuleData {
+  ModuleData(module: module, expressions: [], statements: [])
+}
+
 /// Walk the AST once, collecting all expressions and statements into flat lists.
 pub fn collect(module: Module) -> ModuleData {
   let #(expressions, statements) =

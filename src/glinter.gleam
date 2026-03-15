@@ -228,7 +228,12 @@ fn lint_file(
           Error(Nil)
         }
         Ok(module) -> {
-          let data = walker.collect(module)
+          let needs_collect =
+            list.any(active_rules, fn(r) { r.needs_collect })
+          let data = case needs_collect {
+            True -> walker.collect(module)
+            False -> walker.module_only(module)
+          }
           let file_results =
             active_rules
             |> list.flat_map(fn(r) {

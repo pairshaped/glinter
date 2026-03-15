@@ -4,7 +4,7 @@ import gleam/option.{None, Some}
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(name: "redundant_case", default_severity: Warning, check: check)
+  Rule(name: "redundant_case", default_severity: Warning, needs_collect: True, check: check)
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
