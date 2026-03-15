@@ -171,7 +171,7 @@ fn check_gleam_import(
   }
 }
 
-/// Discover .mjs and .js files in the given directories and lint them.
+/// Discover .mjs files in the given directories and lint them.
 pub fn check_ffi_files(
   directories: List(String),
   project_prefix: String,
@@ -184,9 +184,7 @@ pub fn check_ffi_files(
         case simplifile.get_files(full_dir) {
           Ok(files) ->
             files
-            |> list.filter(fn(f) {
-              string.ends_with(f, ".mjs") || string.ends_with(f, ".js")
-            })
+            |> list.filter(fn(f) { string.ends_with(f, ".mjs") })
             |> list.flat_map(fn(abs_path) {
               let display_path = strip_prefix(abs_path, project_prefix)
               case simplifile.read(abs_path) {

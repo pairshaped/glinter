@@ -1,6 +1,6 @@
 # glinter
 
-A linter for the [Gleam](https://gleam.run) programming language. It parses Gleam source files into ASTs using [glance](https://github.com/gleam-community/glance) and checks them against a configurable set of rules.
+A linter for the [Gleam](https://gleam.run) programming language. It parses Gleam source files into ASTs using [glance](https://github.com/gleam-community/glance) and checks them against a configurable set of rules. Many rules are based on the official [Gleam conventions](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Conventions).
 
 ## Installation
 
@@ -97,6 +97,14 @@ done
 
 - **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded.
 
+### FFI
+
+- **ffi_usage** (off): flags use of Gleam's private JS data API in `.mjs` files — numeric property access (`value[0]`, `tuple.0`), internal constructor checks (`$constructor`), runtime imports (`gleam.mjs`), and internal helpers (`makeError`, `isEqual`, `CustomType`, etc.). These representations can change between compiler versions. Off by default — enable if your project includes JS FFI. Scans `.mjs` files in configured source directories only. Community feedback and PRs welcome to improve pattern detection.
+
+### SQL
+
+- **dynamic_sql** (off): flags string concatenation (`<>`) where one operand is a string literal containing SQL keywords (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `WHERE`, `JOIN`, `FROM`). Off by default — enable if applicable. Community feedback and PRs welcome.
+
 ## Configuration
 
 Configuration lives in your project's `gleam.toml` under the `[tools.glinter]` key:
@@ -130,6 +138,8 @@ unqualified_import = "warning"
 panic_without_message = "warning"
 string_inspect = "warning"
 duplicate_import = "warning"
+ffi_usage = "off"  # off by default
+dynamic_sql = "off"  # off by default
 ```
 
 Each rule can be set to `"error"`, `"warning"`, or `"off"`.
@@ -198,14 +208,6 @@ When `--stats` is enabled, a `stats` object is included:
   }
 }
 ```
-
-## Roadmap
-
-- **Configurable thresholds**: allow threshold values to be set in `gleam.toml` for rules like `deep_nesting` (default 5), `function_complexity` (default 10), and `module_complexity` (default 100). Example: `deep_nesting = { severity = "warning", threshold = 8 }`.
-- **FFI safety lint**: detect use of private Gleam data API internals in JS FFI files (e.g. accessing tuple elements by index or matching on internal constructor representations).
-- **Dynamic SQL detection**: flag string concatenation used to build SQL queries, which risks SQL injection.
-- **Per-directory rule overrides**: apply different rule configs to different directories (e.g. permissive rules for `test/` where `let assert`, short names, and missing labels are idiomatic).
-- **Abbreviation detection**: extend `short_variable_name` to flag common abbreviations (e.g. `req`, `ctx`, `cfg`) beyond single characters.
 
 ## Running Tests
 
