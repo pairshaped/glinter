@@ -170,57 +170,36 @@ fn search_module_for_reference(
   aliases: List(String),
   member_name: String,
 ) -> Bool {
-  // Search function bodies and type annotations
-  let in_functions =
-    list.any(module.functions, fn(def) {
-      let Definition(_, func) = def
-      search_statements(func.body, aliases, member_name)
-      || search_function_types(func, aliases, member_name)
-    })
-  case in_functions {
-    True -> True
-    False -> {
-      // Search constant values and annotations
-      let in_constants =
-        list.any(module.constants, fn(def) {
-          let Definition(_, Constant(value: value, annotation: annotation, ..)) =
-            def
-          search_expression(value, aliases, member_name)
-          || case annotation {
-            Some(t) -> search_type(t, aliases, member_name)
-            None -> False
-          }
-        })
-      case in_constants {
-        True -> True
-        False -> {
-          // Search type definitions (field types in custom types, aliased types)
-          let in_types =
-            list.any(module.custom_types, fn(def) {
-              let Definition(_, CustomType(variants: variants, ..)) = def
-              list.any(variants, fn(variant) {
-                list.any(variant.fields, fn(field) {
-                  case field {
-                    glance.LabelledVariantField(item: t, ..) ->
-                      search_type(t, aliases, member_name)
-                    glance.UnlabelledVariantField(item: t) ->
-                      search_type(t, aliases, member_name)
-                  }
-                })
-              })
-            })
-          case in_types {
-            True -> True
-            False ->
-              list.any(module.type_aliases, fn(def) {
-                let Definition(_, TypeAlias(aliased: t, ..)) = def
-                search_type(t, aliases, member_name)
-              })
-          }
-        }
-      }
+  list.any(module.functions, fn(def) {
+    let Definition(_, func) = def
+    search_statements(func.body, aliases, member_name)
+    || search_function_types(func, aliases, member_name)
+  })
+  || list.any(module.constants, fn(def) {
+    let Definition(_, Constant(value: value, annotation: annotation, ..)) = def
+    search_expression(value, aliases, member_name)
+    || case annotation {
+      Some(t) -> search_type(t, aliases, member_name)
+      None -> False
     }
-  }
+  })
+  || list.any(module.custom_types, fn(def) {
+    let Definition(_, CustomType(variants: variants, ..)) = def
+    list.any(variants, fn(variant) {
+      list.any(variant.fields, fn(field) {
+        case field {
+          glance.LabelledVariantField(item: t, ..) ->
+            search_type(t, aliases, member_name)
+          glance.UnlabelledVariantField(item: t) ->
+            search_type(t, aliases, member_name)
+        }
+      })
+    })
+  })
+  || list.any(module.type_aliases, fn(def) {
+    let Definition(_, TypeAlias(aliased: t, ..)) = def
+    search_type(t, aliases, member_name)
+  })
 }
 
 fn search_function_types(
@@ -228,20 +207,15 @@ fn search_function_types(
   aliases: List(String),
   member_name: String,
 ) -> Bool {
-  let in_params =
-    list.any(func.parameters, fn(param) {
-      case param.type_ {
-        Some(t) -> search_type(t, aliases, member_name)
-        None -> False
-      }
-    })
-  case in_params {
-    True -> True
-    False ->
-      case func.return {
-        Some(t) -> search_type(t, aliases, member_name)
-        None -> False
-      }
+  list.any(func.parameters, fn(param) {
+    case param.type_ {
+      Some(t) -> search_type(t, aliases, member_name)
+      None -> False
+    }
+  })
+  || case func.return {
+    Some(t) -> search_type(t, aliases, member_name)
+    None -> False
   }
 }
 
