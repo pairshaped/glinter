@@ -118,7 +118,6 @@ pub fn count_expr_branches(expr: Expression) -> Int {
     | glance.Variable(_, _)
     | glance.Panic(_, None)
     | glance.Todo(_, None)
-    | glance.Echo(_, None, _)
-    -> 0
+    | glance.Echo(_, None, _) -> 0
   }
 }

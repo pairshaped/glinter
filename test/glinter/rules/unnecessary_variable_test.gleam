@@ -7,12 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [unnecessary_variable.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = unnecessary_variable.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_trailing_let_in_function_test() {
@@ -29,33 +29,27 @@ pub fn ignores_different_names_test() {
 }
 
 pub fn ignores_statements_between_test() {
-  let results =
-    lint_string("pub fn ok() { let x = 1 \n do_something() \n x }")
+  let results = lint_string("pub fn ok() { let x = 1 \n do_something() \n x }")
   list.length(results) |> should.equal(0)
 }
 
 pub fn detects_in_block_test() {
-  let results =
-    lint_string("pub fn bad() { { let x = 1 \n x } }")
+  let results = lint_string("pub fn bad() { { let x = 1 \n x } }")
   list.length(results) |> should.equal(1)
 }
 
 pub fn detects_in_case_branch_test() {
   let results =
-    lint_string(
-      "pub fn bad(v) { case v { _ -> { let x = 1 \n x } } }",
-    )
+    lint_string("pub fn bad(v) { case v { _ -> { let x = 1 \n x } } }")
   list.length(results) |> should.equal(1)
 }
 
 pub fn detects_in_anonymous_fn_test() {
-  let results =
-    lint_string("pub fn bad() { fn() { let x = 1 \n x } }")
+  let results = lint_string("pub fn bad() { fn() { let x = 1 \n x } }")
   list.length(results) |> should.equal(1)
 }
 
 pub fn ignores_pattern_match_assignment_test() {
-  let results =
-    lint_string("pub fn ok() { let #(a, _) = get() \n a }")
+  let results = lint_string("pub fn ok() { let #(a, _) = get() \n a }")
   list.length(results) |> should.equal(0)
 }

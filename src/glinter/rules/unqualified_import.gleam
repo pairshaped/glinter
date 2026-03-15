@@ -1,22 +1,14 @@
 import glance
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/string
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "unqualified_import",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: None,
-    check_function: None,
-    check_module: Some(check),
-  )
+  Rule(name: "unqualified_import", default_severity: Warning, check: check)
 }
 
-fn check(module: glance.Module) -> List(rule.LintResult) {
-  module.imports
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.module.imports
   |> list.flat_map(fn(def) {
     let glance.Definition(_, import_) = def
     import_.unqualified_values

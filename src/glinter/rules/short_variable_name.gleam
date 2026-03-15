@@ -1,20 +1,17 @@
 import glance
-import gleam/option.{None, Some}
+import gleam/list
 import gleam/string
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "short_variable_name",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: Some(check),
-    check_function: None,
-    check_module: None,
-  )
+  Rule(name: "short_variable_name", default_severity: Warning, check: check)
 }
 
-fn check(stmt: glance.Statement) -> List(rule.LintResult) {
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.statements |> list.flat_map(check_statement)
+}
+
+fn check_statement(stmt: glance.Statement) -> List(rule.LintResult) {
   case stmt {
     glance.Assignment(
       location: location,

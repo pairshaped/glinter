@@ -2,7 +2,9 @@ import glance
 import gleam/list
 import gleeunit/should
 import glinter/rule
-import glinter/unused_exports.{PubConstant, PubCustomType, PubFunction, PubTypeAlias}
+import glinter/unused_exports.{
+  PubConstant, PubCustomType, PubFunction, PubTypeAlias,
+}
 
 // --- collect_pub_definitions tests ---
 
@@ -87,12 +89,14 @@ pub fn resolves_unqualified_value_imports_test() {
     glance.module("import myapp/users.{create, find_by_id}")
   let result = unused_exports.resolve_module_import(module, "myapp/users")
   should.be_true(list.contains(result, unused_exports.QualifiedAs("users")))
-  should.be_true(
-    list.contains(result, unused_exports.UnqualifiedValue("create")),
-  )
-  should.be_true(
-    list.contains(result, unused_exports.UnqualifiedValue("find_by_id")),
-  )
+  should.be_true(list.contains(
+    result,
+    unused_exports.UnqualifiedValue("create"),
+  ))
+  should.be_true(list.contains(
+    result,
+    unused_exports.UnqualifiedValue("find_by_id"),
+  ))
 }
 
 pub fn resolves_unqualified_type_imports_test() {
@@ -122,7 +126,12 @@ pub fn detects_qualified_function_call_test() {
      pub fn run() { users.create() }",
     )
   let result =
-    unused_exports.is_member_used_in(module, "myapp/users", "create", PubFunction)
+    unused_exports.is_member_used_in(
+      module,
+      "myapp/users",
+      "create",
+      PubFunction,
+    )
   result |> should.be_true
 }
 
@@ -177,7 +186,12 @@ pub fn detects_qualified_constructor_in_pattern_test() {
 pub fn detects_unqualified_import_as_used_test() {
   let assert Ok(module) = glance.module("import myapp/users.{create}")
   let result =
-    unused_exports.is_member_used_in(module, "myapp/users", "create", PubFunction)
+    unused_exports.is_member_used_in(
+      module,
+      "myapp/users",
+      "create",
+      PubFunction,
+    )
   result |> should.be_true
 }
 
@@ -200,7 +214,12 @@ pub fn detects_aliased_module_access_test() {
      pub fn run() { u.create() }",
     )
   let result =
-    unused_exports.is_member_used_in(module, "myapp/users", "create", PubFunction)
+    unused_exports.is_member_used_in(
+      module,
+      "myapp/users",
+      "create",
+      PubFunction,
+    )
   result |> should.be_true
 }
 
@@ -211,14 +230,24 @@ pub fn returns_false_when_not_used_test() {
      pub fn run() { Nil }",
     )
   let result =
-    unused_exports.is_member_used_in(module, "myapp/users", "create", PubFunction)
+    unused_exports.is_member_used_in(
+      module,
+      "myapp/users",
+      "create",
+      PubFunction,
+    )
   result |> should.be_false
 }
 
 pub fn returns_false_when_not_imported_test() {
   let assert Ok(module) = glance.module("pub fn run() { Nil }")
   let result =
-    unused_exports.is_member_used_in(module, "myapp/users", "create", PubFunction)
+    unused_exports.is_member_used_in(
+      module,
+      "myapp/users",
+      "create",
+      PubFunction,
+    )
   result |> should.be_false
 }
 

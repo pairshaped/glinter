@@ -7,12 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [string_inspect.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = string_inspect.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_string_inspect_test() {

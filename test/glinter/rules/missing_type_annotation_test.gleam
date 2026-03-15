@@ -7,12 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [missing_type_annotation.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = missing_type_annotation.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_missing_return_type_test() {

@@ -7,12 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [todo_without_message.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = todo_without_message.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_todo_without_message_test() {
@@ -23,8 +23,7 @@ pub fn detects_todo_without_message_test() {
 }
 
 pub fn ignores_todo_with_message_test() {
-  let results =
-    lint_string("pub fn main() { todo as \"implement auth\" }")
+  let results = lint_string("pub fn main() { todo as \"implement auth\" }")
   list.length(results) |> should.equal(0)
 }
 

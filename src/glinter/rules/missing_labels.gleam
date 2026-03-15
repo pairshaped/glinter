@@ -1,4 +1,4 @@
-import glance.{type Expression, type Module, type Statement}
+import glance.{type Expression, type Statement}
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
@@ -6,29 +6,20 @@ import gleam/option.{None, Some}
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "missing_labels",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: None,
-    check_function: None,
-    check_module: Some(check),
-  )
+  Rule(name: "missing_labels", default_severity: Warning, check: check)
 }
 
-fn check(module: Module) -> List(rule.LintResult) {
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
   // Build dict of function name -> parameters
   let fn_params =
-    module.functions
+    data.module.functions
     |> list.fold(dict.new(), fn(acc, def) {
       dict.insert(acc, def.definition.name, def.definition.parameters)
     })
 
   // Walk all function bodies looking for calls
-  module.functions
-  |> list.flat_map(fn(def) {
-    walk_stmts(def.definition.body, fn_params)
-  })
+  data.module.functions
+  |> list.flat_map(fn(def) { walk_stmts(def.definition.body, fn_params) })
 }
 
 fn walk_stmts(
@@ -147,10 +138,7 @@ fn walk_children(
     }
 
     glance.BinaryOperator(_, _, left, right) ->
-      list.append(
-        walk_expr(left, fn_params),
-        walk_expr(right, fn_params),
-      )
+      list.append(walk_expr(left, fn_params), walk_expr(right, fn_params))
 
     glance.FieldAccess(_, container, _) -> walk_expr(container, fn_params)
     glance.TupleIndex(_, tuple, _) -> walk_expr(tuple, fn_params)
@@ -197,7 +185,6 @@ fn walk_children(
     | glance.Variable(_, _)
     | glance.Panic(_, None)
     | glance.Todo(_, None)
-    | glance.Echo(_, None, _)
-    -> []
+    | glance.Echo(_, None, _) -> []
   }
 }

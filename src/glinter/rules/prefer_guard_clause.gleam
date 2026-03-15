@@ -1,19 +1,18 @@
 import glance
-import gleam/option.{None, Some}
+import gleam/list
+import gleam/option.{None}
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "prefer_guard_clause",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: None,
-    check_function: Some(check),
-    check_module: None,
-  )
+  Rule(name: "prefer_guard_clause", default_severity: Warning, check: check)
 }
 
-fn check(func: glance.Function) -> List(rule.LintResult) {
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.module.functions
+  |> list.flat_map(fn(def) { check_function(def.definition) })
+}
+
+fn check_function(func: glance.Function) -> List(rule.LintResult) {
   case func.body {
     [glance.Expression(glance.Case(location, _, [clause_a, clause_b]))] ->
       case
@@ -49,11 +48,7 @@ fn is_bool_pair(clause_a: glance.Clause, clause_b: glance.Clause) -> Bool {
   }
 }
 
-fn has_simple_branch(
-  clause_a: glance.Clause,
-  clause_b: glance.Clause,
-) -> Bool {
-  // At least one branch must be simple (not a Block)
+fn has_simple_branch(clause_a: glance.Clause, clause_b: glance.Clause) -> Bool {
   is_simple(clause_a.body) || is_simple(clause_b.body)
 }
 

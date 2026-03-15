@@ -7,12 +7,19 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(module, [label_possible.rule()], source, "test.gleam")
+  let r = label_possible.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_unlabeled_param_test() {
   let results =
-    lint_string("pub fn greet(name: String, greeting: String) { greeting <> name }")
+    lint_string(
+      "pub fn greet(name: String, greeting: String) { greeting <> name }",
+    )
   list.length(results) |> should.equal(2)
   let assert [result, ..] = results
   result.rule |> should.equal("label_possible")
@@ -46,7 +53,6 @@ pub fn ignores_one_param_no_label_test() {
 }
 
 pub fn detects_three_unlabeled_params_test() {
-  let results =
-    lint_string("pub fn f(a: Int, b: Int, c: Int) { a + b + c }")
+  let results = lint_string("pub fn f(a: Int, b: Int, c: Int) { a + b + c }")
   list.length(results) |> should.equal(3)
 }

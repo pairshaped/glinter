@@ -8,7 +8,8 @@ import gleam/string
 import glinter/config
 import glinter/ignore
 import glinter/reporter.{Json, Text}
-import glinter/rule.{type Rule}
+import glinter/rule.{type Rule, LintResult}
+import glinter/walker
 import glinter/rules/assert_ok_pattern
 import glinter/rules/avoid_panic
 import glinter/rules/avoid_todo
@@ -17,21 +18,20 @@ import glinter/rules/discarded_result
 import glinter/rules/duplicate_import
 import glinter/rules/echo_rule
 import glinter/rules/function_complexity
+import glinter/rules/label_possible
+import glinter/rules/missing_labels
+import glinter/rules/missing_type_annotation
 import glinter/rules/module_complexity
+import glinter/rules/panic_without_message
 import glinter/rules/prefer_guard_clause
 import glinter/rules/redundant_case
 import glinter/rules/short_variable_name
 import glinter/rules/string_inspect
-import glinter/rules/unnecessary_variable
-import glinter/rules/unwrap_used
-import glinter/rules/label_possible
-import glinter/rules/missing_labels
-import glinter/rules/missing_type_annotation
-import glinter/rules/panic_without_message
 import glinter/rules/todo_without_message
+import glinter/rules/unnecessary_variable
 import glinter/rules/unqualified_import
+import glinter/rules/unwrap_used
 import glinter/unused_exports
-import glinter/walker
 import simplifile
 
 pub fn main() {
@@ -73,8 +73,7 @@ pub fn main() {
     [] ->
       case cfg.include {
         [] -> [project_prefix <> "src/"]
-        dirs ->
-          list.map(dirs, fn(d) { project_prefix <> d })
+        dirs -> list.map(dirs, fn(d) { project_prefix <> d })
       }
     _ -> paths
   }
@@ -93,11 +92,10 @@ pub fn main() {
       // Read from the absolute path, but use relative path for reporting
       let read_path = project_prefix <> file_path
       case lint_file(read_path, file_path, rules, cfg) {
-        Ok(#(file_results, source)) ->
-          #(
-            list.append(list.reverse(file_results), acc_results),
-            [#(file_path, source), ..acc_sources],
-          )
+        Ok(#(file_results, source)) -> #(
+          list.append(list.reverse(file_results), acc_results),
+          [#(file_path, source), ..acc_sources],
+        )
         Error(_) -> acc
       }
     })
@@ -105,16 +103,16 @@ pub fn main() {
   let sources = list.reverse(rev_sources)
 
   // Cross-module: unused exports detection
-  let unused_export_results =
-    run_unused_exports(sources, project_prefix, cfg)
+  let unused_export_results = run_unused_exports(sources, project_prefix, cfg)
   let results = list.append(per_file_results, unused_export_results)
 
   let elapsed_ms = monotonic_time_ms() - start_time
-  let stats = reporter.Stats(
-    file_count: list.length(sources),
-    line_count: count_lines(sources),
-    elapsed_ms: elapsed_ms,
-  )
+  let stats =
+    reporter.Stats(
+      file_count: list.length(sources),
+      line_count: count_lines(sources),
+      elapsed_ms: elapsed_ms,
+    )
 
   let output = case format {
     Text -> reporter.format_text(results, sources, show_stats, stats)
@@ -230,8 +228,19 @@ fn lint_file(
           Error(Nil)
         }
         Ok(module) -> {
+          let data = walker.collect(module)
           let file_results =
-            walker.walk_module(module, active_rules, source, display_path)
+            active_rules
+            |> list.flat_map(fn(r) {
+              r.check(data, source)
+              |> list.map(fn(result) {
+                LintResult(
+                  ..result,
+                  file: display_path,
+                  severity: r.default_severity,
+                )
+              })
+            })
           Ok(#(file_results, source))
         }
       }
@@ -331,11 +340,7 @@ fn run_unused_exports(
             let rel_path = strip_prefix(abs_path, project_prefix)
             case simplifile.read(abs_path) {
               Ok(source) ->
-                Ok(#(
-                  rel_path,
-                  file_path_to_module_path(rel_path),
-                  source,
-                ))
+                Ok(#(rel_path, file_path_to_module_path(rel_path), source))
               Error(_) -> Error(Nil)
             }
           })

@@ -7,7 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(module, [missing_labels.rule()], source, "test.gleam")
+  let r = missing_labels.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_missing_label_test() {
@@ -41,8 +46,7 @@ pub fn main() { add(1, 2) }",
 }
 
 pub fn ignores_unknown_function_test() {
-  let results =
-    lint_string("pub fn main() { unknown_fn(1, 2) }")
+  let results = lint_string("pub fn main() { unknown_fn(1, 2) }")
   list.length(results) |> should.equal(0)
 }
 

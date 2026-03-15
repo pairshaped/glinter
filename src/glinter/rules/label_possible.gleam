@@ -1,20 +1,18 @@
 import glance
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{None}
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "label_possible",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: None,
-    check_function: Some(check),
-    check_module: None,
-  )
+  Rule(name: "label_possible", default_severity: Warning, check: check)
 }
 
-fn check(func: glance.Function) -> List(rule.LintResult) {
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.module.functions
+  |> list.flat_map(fn(def) { check_function(def.definition) })
+}
+
+fn check_function(func: glance.Function) -> List(rule.LintResult) {
   let params = func.parameters
   case list.length(params) >= 2 {
     False -> []

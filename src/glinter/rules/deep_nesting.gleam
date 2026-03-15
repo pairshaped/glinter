@@ -7,18 +7,12 @@ import glinter/rule.{type Rule, LintResult, Rule, Warning}
 const threshold = 5
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "deep_nesting",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: None,
-    check_function: Some(check),
-    check_module: None,
-  )
+  Rule(name: "deep_nesting", default_severity: Warning, check: check)
 }
 
-fn check(func: glance.Function) -> List(rule.LintResult) {
-  check_stmts_depth(func.body, 1)
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.module.functions
+  |> list.flat_map(fn(def) { check_stmts_depth(def.definition.body, 1) })
 }
 
 fn check_stmts_depth(
@@ -29,10 +23,7 @@ fn check_stmts_depth(
   |> list.flat_map(fn(stmt) { check_stmt_depth(stmt, depth) })
 }
 
-fn check_stmt_depth(
-  stmt: Statement,
-  depth: Int,
-) -> List(rule.LintResult) {
+fn check_stmt_depth(stmt: Statement, depth: Int) -> List(rule.LintResult) {
   case stmt {
     glance.Expression(expr) -> check_expr_depth(expr, depth)
     glance.Assignment(value: expr, ..) -> check_expr_depth(expr, depth)
@@ -41,10 +32,7 @@ fn check_stmt_depth(
   }
 }
 
-fn check_expr_depth(
-  expr: Expression,
-  depth: Int,
-) -> List(rule.LintResult) {
+fn check_expr_depth(expr: Expression, depth: Int) -> List(rule.LintResult) {
   case expr {
     glance.Block(location, stmts) -> {
       let new_depth = depth + 1
@@ -126,10 +114,7 @@ fn check_expr_depth(
     }
 
     glance.BinaryOperator(_, _, left, right) ->
-      list.append(
-        check_expr_depth(left, depth),
-        check_expr_depth(right, depth),
-      )
+      list.append(check_expr_depth(left, depth), check_expr_depth(right, depth))
 
     glance.Tuple(_, elements) ->
       elements |> list.flat_map(fn(e) { check_expr_depth(e, depth) })
@@ -189,7 +174,6 @@ fn check_expr_depth(
     | glance.Variable(_, _)
     | glance.Panic(_, None)
     | glance.Todo(_, None)
-    | glance.Echo(_, None, _)
-    -> []
+    | glance.Echo(_, None, _) -> []
   }
 }

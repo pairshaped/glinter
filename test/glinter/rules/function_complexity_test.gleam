@@ -8,12 +8,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [function_complexity.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = function_complexity.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 fn make_cases(count: Int) -> String {
@@ -41,8 +41,7 @@ pub fn detects_function_over_threshold_test() {
 pub fn counts_anonymous_fns_test() {
   // 9 cases + 2 anonymous fns = 11
   let cases = make_cases(9)
-  let source =
-    "pub fn f(x) {\n" <> cases <> "\nfn() { 1 }\nfn() { 2 }\n}"
+  let source = "pub fn f(x) {\n" <> cases <> "\nfn() { 1 }\nfn() { 2 }\n}"
   let results = lint_string(source)
   list.length(results) |> should.equal(1)
 }

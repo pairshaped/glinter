@@ -1,26 +1,23 @@
 import glance
-import gleam/option.{None, Some}
+import gleam/list
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "unwrap_used",
-    default_severity: Warning,
-    check_expression: Some(check),
-    check_statement: None,
-    check_function: None,
-    check_module: None,
-  )
+  Rule(name: "unwrap_used", default_severity: Warning, check: check)
 }
 
-fn check(expr: glance.Expression) -> List(rule.LintResult) {
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.expressions |> list.flat_map(check_expression)
+}
+
+fn check_expression(expr: glance.Expression) -> List(rule.LintResult) {
   case expr {
     glance.Call(
       location,
-      glance.FieldAccess(_, glance.Variable(_, module), label),
+      glance.FieldAccess(_, glance.Variable(_, module_name), label),
       _,
     ) ->
-      case module {
+      case module_name {
         "result" | "option" ->
           case label {
             "unwrap" | "lazy_unwrap" -> [
@@ -30,7 +27,7 @@ fn check(expr: glance.Expression) -> List(rule.LintResult) {
                 file: "",
                 location: location,
                 message: "Avoid "
-                  <> module
+                  <> module_name
                   <> "."
                   <> label
                   <> " — use a case expression to handle all variants",

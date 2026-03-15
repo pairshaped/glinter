@@ -1,7 +1,4 @@
-import glance.{
-  type Expression, type Function, type Module, type Span, type Statement,
-}
-import gleam/option.{type Option}
+import glance.{type Expression, type Module, type Span, type Statement}
 
 pub type Severity {
   Error
@@ -18,13 +15,20 @@ pub type LintResult {
   )
 }
 
+/// Pre-computed data from a single AST traversal.
+/// Rules receive this instead of walking the AST themselves.
+pub type ModuleData {
+  ModuleData(
+    module: Module,
+    expressions: List(Expression),
+    statements: List(Statement),
+  )
+}
+
 pub type Rule {
   Rule(
     name: String,
     default_severity: Severity,
-    check_expression: Option(fn(Expression) -> List(LintResult)),
-    check_statement: Option(fn(Statement) -> List(LintResult)),
-    check_function: Option(fn(Function) -> List(LintResult)),
-    check_module: Option(fn(Module) -> List(LintResult)),
+    check: fn(ModuleData, String) -> List(LintResult),
   )
 }

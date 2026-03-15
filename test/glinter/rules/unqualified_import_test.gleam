@@ -7,12 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [unqualified_import.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = unqualified_import.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_unqualified_function_import_test() {
@@ -42,8 +42,7 @@ pub fn ignores_unqualified_type_import_test() {
 }
 
 pub fn ignores_constructor_imports_test() {
-  let results =
-    lint_string("import gleam/option.{type Option, None, Some}")
+  let results = lint_string("import gleam/option.{type Option, None, Some}")
   // Constructors (PascalCase) are fine, only functions/constants flagged
   list.length(results) |> should.equal(0)
 }

@@ -50,7 +50,7 @@ pub fn sort_results(
     #(r, line)
   })
   |> list.sort(fn(a, b) {
-    case string.compare(a.0.file, b.0.file) {
+    case string.compare({ a.0 }.file, { b.0 }.file) {
       order.Eq -> int.compare(a.1, b.1)
       other -> other
     }
@@ -82,7 +82,9 @@ pub fn format_text(
   let error_count =
     results |> list.filter(fn(r) { r.severity == rule.Error }) |> list.length()
   let warning_count =
-    results |> list.filter(fn(r) { r.severity == rule.Warning }) |> list.length()
+    results
+    |> list.filter(fn(r) { r.severity == rule.Warning })
+    |> list.length()
   let total = list.length(results)
 
   let summary =
@@ -121,7 +123,9 @@ pub fn format_json(
   let error_count =
     results |> list.filter(fn(r) { r.severity == rule.Error }) |> list.length()
   let warning_count =
-    results |> list.filter(fn(r) { r.severity == rule.Warning }) |> list.length()
+    results
+    |> list.filter(fn(r) { r.severity == rule.Warning })
+    |> list.length()
 
   let result_objects =
     sorted

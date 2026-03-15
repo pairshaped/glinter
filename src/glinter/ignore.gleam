@@ -2,10 +2,7 @@ import gleam/dict.{type Dict}
 import gleam/list
 import gleam/string
 
-pub fn is_file_excluded(
-  file: String,
-  exclude: List(String),
-) -> Bool {
+pub fn is_file_excluded(file: String, exclude: List(String)) -> Bool {
   list.any(exclude, fn(pattern) { glob_matches(file, pattern) })
 }
 
@@ -26,10 +23,7 @@ fn glob_matches(path: String, pattern: String) -> Bool {
   do_glob_match(string.split(path, "/"), string.split(pattern, "/"))
 }
 
-fn do_glob_match(
-  path_parts: List(String),
-  pattern_parts: List(String),
-) -> Bool {
+fn do_glob_match(path_parts: List(String), pattern_parts: List(String)) -> Bool {
   case path_parts, pattern_parts {
     [], [] -> True
     _, [] -> False
@@ -47,8 +41,7 @@ fn segment_matches(segment: String, pattern: String) -> Bool {
   case string.split(pattern, "*") {
     [only] -> segment == only
     [prefix, suffix] ->
-      string.starts_with(segment, prefix)
-      && string.ends_with(segment, suffix)
+      string.starts_with(segment, prefix) && string.ends_with(segment, suffix)
     _ -> False
   }
 }

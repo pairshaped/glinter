@@ -14,9 +14,7 @@ pub fn counts_case_expression_test() {
 }
 
 pub fn counts_nested_case_test() {
-  count(
-    "pub fn f(x) { case x { _ -> case x { _ -> 1 } } }",
-  )
+  count("pub fn f(x) { case x { _ -> case x { _ -> 1 } } }")
   |> should.equal(2)
 }
 

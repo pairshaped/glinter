@@ -109,9 +109,7 @@ fn parse_exclude(parsed: Dict(String, tom.Toml)) -> List(String) {
   }
 }
 
-fn parse_ignore(
-  parsed: Dict(String, tom.Toml),
-) -> Dict(String, List(String)) {
+fn parse_ignore(parsed: Dict(String, tom.Toml)) -> Dict(String, List(String)) {
   case tom.get_table(parsed, ["tools", "glinter", "ignore"]) {
     Error(_) -> dict.new()
     Ok(ignore_table) -> {

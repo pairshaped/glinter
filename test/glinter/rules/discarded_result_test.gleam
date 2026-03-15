@@ -7,7 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(module, [discarded_result.rule()], source, "test.gleam")
+  let r = discarded_result.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_discarded_result_test() {
@@ -29,7 +34,6 @@ pub fn ignores_regular_assignment_test() {
 }
 
 pub fn ignores_let_assert_test() {
-  let results =
-    lint_string("pub fn ok() { let assert Ok(x) = get() \n x }")
+  let results = lint_string("pub fn ok() { let assert Ok(x) = get() \n x }")
   list.length(results) |> should.equal(0)
 }

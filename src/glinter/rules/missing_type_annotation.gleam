@@ -4,17 +4,15 @@ import gleam/option.{None, Some}
 import glinter/rule.{type Rule, LintResult, Rule, Warning}
 
 pub fn rule() -> Rule {
-  Rule(
-    name: "missing_type_annotation",
-    default_severity: Warning,
-    check_expression: None,
-    check_statement: None,
-    check_function: Some(check),
-    check_module: None,
-  )
+  Rule(name: "missing_type_annotation", default_severity: Warning, check: check)
 }
 
-fn check(func: glance.Function) -> List(rule.LintResult) {
+fn check(data: rule.ModuleData, _source: String) -> List(rule.LintResult) {
+  data.module.functions
+  |> list.flat_map(fn(def) { check_function(def.definition) })
+}
+
+fn check_function(func: glance.Function) -> List(rule.LintResult) {
   let return_result = case func.return {
     None -> [
       LintResult(

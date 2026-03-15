@@ -30,8 +30,10 @@ pub fn collect_pub_definitions(module: Module) -> List(PubDefinition) {
   let functions =
     module.functions
     |> list.filter_map(fn(def) {
-      let Definition(_, Function(name: name, publicity: publicity, location: location, ..)) =
-        def
+      let Definition(
+        _,
+        Function(name: name, publicity: publicity, location: location, ..),
+      ) = def
       case publicity, name {
         Public, "main" -> Error(Nil)
         Public, _ ->
@@ -43,8 +45,10 @@ pub fn collect_pub_definitions(module: Module) -> List(PubDefinition) {
   let constants =
     module.constants
     |> list.filter_map(fn(def) {
-      let Definition(_, Constant(name: name, publicity: publicity, location: location, ..)) =
-        def
+      let Definition(
+        _,
+        Constant(name: name, publicity: publicity, location: location, ..),
+      ) = def
       case publicity {
         Public ->
           Ok(PubDefinition(name: name, kind: PubConstant, location: location))
@@ -55,8 +59,10 @@ pub fn collect_pub_definitions(module: Module) -> List(PubDefinition) {
   let types =
     module.custom_types
     |> list.filter_map(fn(def) {
-      let Definition(_, CustomType(name: name, publicity: publicity, location: location, ..)) =
-        def
+      let Definition(
+        _,
+        CustomType(name: name, publicity: publicity, location: location, ..),
+      ) = def
       case publicity {
         Public ->
           Ok(PubDefinition(name: name, kind: PubCustomType, location: location))
@@ -67,8 +73,10 @@ pub fn collect_pub_definitions(module: Module) -> List(PubDefinition) {
   let aliases =
     module.type_aliases
     |> list.filter_map(fn(def) {
-      let Definition(_, TypeAlias(name: name, publicity: publicity, location: location, ..)) =
-        def
+      let Definition(
+        _,
+        TypeAlias(name: name, publicity: publicity, location: location, ..),
+      ) = def
       case publicity {
         Public ->
           Ok(PubDefinition(name: name, kind: PubTypeAlias, location: location))
@@ -95,8 +103,7 @@ pub fn resolve_module_import(
           Some(glance.Named(alias)) -> [QualifiedAs(alias)]
           Some(glance.Discarded(_)) -> []
           None -> {
-            let assert Ok(last) =
-              string.split(module_path, "/") |> list.last
+            let assert Ok(last) = string.split(module_path, "/") |> list.last
             [QualifiedAs(last)]
           }
         }
@@ -277,18 +284,14 @@ fn search_expression(
     glance.FieldAccess(_, container, label) ->
       case container {
         glance.Variable(_, module_name) ->
-          label == member_name
-          && list.contains(aliases, module_name)
+          label == member_name && list.contains(aliases, module_name)
         _ -> False
       }
       || search_expression(container, aliases, member_name)
 
     // Record update: module.Constructor(..record, field: value)
     glance.RecordUpdate(_, Some(module_name), constructor, record, fields) ->
-      {
-        constructor == member_name
-        && list.contains(aliases, module_name)
-      }
+      { constructor == member_name && list.contains(aliases, module_name) }
       || search_expression(record, aliases, member_name)
       || list.any(fields, fn(field) {
         case field.item {
@@ -313,9 +316,7 @@ fn search_expression(
     glance.Block(_, stmts) -> search_statements(stmts, aliases, member_name)
 
     glance.Case(_, subjects, clauses) ->
-      list.any(subjects, fn(s) {
-        search_expression(s, aliases, member_name)
-      })
+      list.any(subjects, fn(s) { search_expression(s, aliases, member_name) })
       || list.any(clauses, fn(clause) {
         search_expression(clause.body, aliases, member_name)
         || list.any(clause.patterns, fn(pattern_list) {
@@ -332,14 +333,10 @@ fn search_expression(
     glance.Fn(_, _, _, body) -> search_statements(body, aliases, member_name)
 
     glance.Tuple(_, elements) ->
-      list.any(elements, fn(e) {
-        search_expression(e, aliases, member_name)
-      })
+      list.any(elements, fn(e) { search_expression(e, aliases, member_name) })
 
     glance.List(_, elements, rest) ->
-      list.any(elements, fn(e) {
-        search_expression(e, aliases, member_name)
-      })
+      list.any(elements, fn(e) { search_expression(e, aliases, member_name) })
       || case rest {
         Some(r) -> search_expression(r, aliases, member_name)
         None -> False
@@ -391,8 +388,7 @@ fn search_expression(
     | glance.Variable(_, _)
     | glance.Panic(_, None)
     | glance.Todo(_, None)
-    | glance.Echo(_, None, _)
-    -> False
+    | glance.Echo(_, None, _) -> False
   }
 }
 
@@ -417,10 +413,7 @@ fn search_pattern(
 ) -> Bool {
   case pattern {
     glance.PatternVariant(_, Some(module_name), constructor, arguments, _) ->
-      {
-        constructor == member_name
-        && list.contains(aliases, module_name)
-      }
+      { constructor == member_name && list.contains(aliases, module_name) }
       || list.any(arguments, fn(field) {
         case field {
           glance.LabelledField(_, _, item) ->
@@ -464,21 +457,14 @@ fn search_pattern(
     | glance.PatternString(_, _)
     | glance.PatternDiscard(_, _)
     | glance.PatternVariable(_, _)
-    | glance.PatternConcatenate(_, _, _, _)
-    -> False
+    | glance.PatternConcatenate(_, _, _, _) -> False
   }
 }
 
-fn search_type(
-  type_: Type,
-  aliases: List(String),
-  member_name: String,
-) -> Bool {
+fn search_type(type_: Type, aliases: List(String), member_name: String) -> Bool {
   case type_ {
     glance.NamedType(_, name, Some(module_name), parameters) ->
-      {
-        name == member_name && list.contains(aliases, module_name)
-      }
+      { name == member_name && list.contains(aliases, module_name) }
       || list.any(parameters, fn(p) { search_type(p, aliases, member_name) })
 
     glance.NamedType(_, _, None, parameters) ->
@@ -526,8 +512,7 @@ pub fn check_unused_exports(
   |> list.flat_map(fn(src) {
     let #(file_path, module_path, module) = src
     let pub_defs = collect_pub_definitions(module)
-    let other_files =
-      list.filter(all_consumers, fn(f) { f.0 != file_path })
+    let other_files = list.filter(all_consumers, fn(f) { f.0 != file_path })
 
     pub_defs
     |> list.filter_map(fn(pub_def) {

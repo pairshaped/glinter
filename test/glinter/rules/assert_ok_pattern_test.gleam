@@ -7,17 +7,16 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [assert_ok_pattern.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = assert_ok_pattern.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_let_assert_test() {
-  let results =
-    lint_string("pub fn bad() { let assert Ok(x) = get() \n x }")
+  let results = lint_string("pub fn bad() { let assert Ok(x) = get() \n x }")
   list.length(results) |> should.equal(1)
   let assert [result] = results
   result.rule |> should.equal("assert_ok_pattern")

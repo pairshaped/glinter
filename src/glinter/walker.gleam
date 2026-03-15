@@ -1,188 +1,129 @@
-import glance.{
-  type Expression, type Module, type Statement,
-}
+/// Walker utilities for AST traversal.
+/// Provides a single-pass collector that builds flat lists of all expressions
+/// and statements, plus helpers for rules that need custom traversal.
+
+import glance.{type Expression, type Module, type Statement}
 import gleam/list
 import gleam/option.{None, Some}
-import glinter/rule.{type LintResult, type Rule, LintResult}
+import glinter/rule.{type ModuleData, ModuleData}
 
-pub fn walk_module(
-  module: Module,
-  rules: List(Rule),
-  _source: String,
-  file: String,
-) -> List(LintResult) {
-  let module_results =
-    rules
-    |> list.flat_map(fn(r) {
-      case r.check_module {
-        Some(check) ->
-          check(module)
-          |> list.map(fn(result) {
-            LintResult(..result, severity: r.default_severity)
-          })
-        None -> []
-      }
-    })
-
-  let function_results =
+/// Walk the AST once, collecting all expressions and statements into flat lists.
+pub fn collect(module: Module) -> ModuleData {
+  let #(expressions, statements) =
     module.functions
-    |> list.flat_map(fn(def) {
-      let func = def.definition
-      let fn_results = run_function_rules(func, rules)
-      let body_results =
-        func.body
-        |> list.flat_map(fn(stmt) { walk_statement(stmt, rules) })
-      list.append(fn_results, body_results)
+    |> list.fold(#([], []), fn(acc, def) {
+      collect_from_statements(def.definition.body, acc)
     })
-
-  list.append(module_results, function_results)
-  |> list.map(fn(result) { LintResult(..result, file: file) })
+  ModuleData(
+    module: module,
+    expressions: list.reverse(expressions),
+    statements: list.reverse(statements),
+  )
 }
 
-fn run_function_rules(
-  func: glance.Function,
-  rules: List(Rule),
-) -> List(LintResult) {
-  rules
-  |> list.flat_map(fn(r) {
-    case r.check_function {
-      Some(check) ->
-        check(func)
-        |> list.map(fn(result) {
-          LintResult(..result, severity: r.default_severity)
-        })
-      None -> []
+fn collect_from_statements(
+  stmts: List(Statement),
+  acc: #(List(Expression), List(Statement)),
+) -> #(List(Expression), List(Statement)) {
+  list.fold(stmts, acc, fn(acc, stmt) {
+    let #(exprs, stmts) = acc
+    let acc = #(exprs, [stmt, ..stmts])
+    let expr = case stmt {
+      glance.Expression(expr) -> expr
+      glance.Assignment(value: expr, ..) -> expr
+      glance.Use(function: expr, ..) -> expr
+      glance.Assert(expression: expr, ..) -> expr
     }
+    collect_from_expression(expr, acc)
   })
 }
 
-fn walk_statement(stmt: Statement, rules: List(Rule)) -> List(LintResult) {
-  let statement_results =
-    rules
-    |> list.flat_map(fn(r) {
-      case r.check_statement {
-        Some(check) ->
-          check(stmt)
-          |> list.map(fn(result) {
-            LintResult(..result, severity: r.default_severity)
-          })
-        None -> []
-      }
-    })
+fn collect_from_expression(
+  expr: Expression,
+  acc: #(List(Expression), List(Statement)),
+) -> #(List(Expression), List(Statement)) {
+  let #(exprs, stmts) = acc
+  let acc = #([expr, ..exprs], stmts)
 
-  let expression_results = case stmt {
-    glance.Expression(expr) -> walk_expression(expr, rules)
-    glance.Assignment(value: expr, ..) -> walk_expression(expr, rules)
-    glance.Use(function: expr, ..) -> walk_expression(expr, rules)
-    glance.Assert(expression: expr, ..) -> walk_expression(expr, rules)
-  }
+  case expr {
+    glance.Block(_, block_stmts) -> collect_from_statements(block_stmts, acc)
 
-  list.append(statement_results, expression_results)
-}
-
-fn walk_expression(expr: Expression, rules: List(Rule)) -> List(LintResult) {
-  let expr_results =
-    rules
-    |> list.flat_map(fn(r) {
-      case r.check_expression {
-        Some(check) ->
-          check(expr)
-          |> list.map(fn(result) {
-            LintResult(..result, severity: r.default_severity)
-          })
-        None -> []
-      }
-    })
-
-  let child_results = case expr {
-    glance.Block(_, stmts) ->
-      stmts |> list.flat_map(fn(s) { walk_statement(s, rules) })
+    glance.Fn(_, _, _, body) -> collect_from_statements(body, acc)
 
     glance.Case(_, subjects, clauses) -> {
-      let subject_results =
-        subjects |> list.flat_map(fn(s) { walk_expression(s, rules) })
-      let clause_results =
-        clauses
-        |> list.flat_map(fn(clause) { walk_expression(clause.body, rules) })
-      list.append(subject_results, clause_results)
+      let acc =
+        list.fold(subjects, acc, fn(acc, s) {
+          collect_from_expression(s, acc)
+        })
+      list.fold(clauses, acc, fn(acc, clause) {
+        collect_from_expression(clause.body, acc)
+      })
     }
 
     glance.Call(_, function, arguments) -> {
-      let fn_results = walk_expression(function, rules)
-      let arg_results =
-        arguments
-        |> list.flat_map(fn(field) {
-          case field {
-            glance.LabelledField(_, _, item) -> walk_expression(item, rules)
-            glance.UnlabelledField(item) -> walk_expression(item, rules)
-            glance.ShorthandField(_, _) -> []
-          }
-        })
-      list.append(fn_results, arg_results)
+      let acc = collect_from_expression(function, acc)
+      list.fold(arguments, acc, fn(acc, field) {
+        case field {
+          glance.LabelledField(_, _, item) ->
+            collect_from_expression(item, acc)
+          glance.UnlabelledField(item) -> collect_from_expression(item, acc)
+          glance.ShorthandField(_, _) -> acc
+        }
+      })
     }
-
-    glance.Fn(_, _, _, body) ->
-      body |> list.flat_map(fn(s) { walk_statement(s, rules) })
 
     glance.Tuple(_, elements) ->
-      elements |> list.flat_map(fn(e) { walk_expression(e, rules) })
+      list.fold(elements, acc, fn(acc, e) { collect_from_expression(e, acc) })
 
     glance.List(_, elements, rest) -> {
-      let el_results =
-        elements |> list.flat_map(fn(e) { walk_expression(e, rules) })
-      let rest_results = case rest {
-        Some(r) -> walk_expression(r, rules)
-        None -> []
+      let acc =
+        list.fold(elements, acc, fn(acc, e) { collect_from_expression(e, acc) })
+      case rest {
+        Some(r) -> collect_from_expression(r, acc)
+        None -> acc
       }
-      list.append(el_results, rest_results)
     }
 
-    glance.Echo(_, Some(inner), _) -> walk_expression(inner, rules)
+    glance.BinaryOperator(_, _, left, right) -> {
+      let acc = collect_from_expression(left, acc)
+      collect_from_expression(right, acc)
+    }
 
-    glance.Panic(_, Some(inner)) -> walk_expression(inner, rules)
-
-    glance.Todo(_, Some(inner)) -> walk_expression(inner, rules)
+    glance.Echo(_, Some(inner), _) -> collect_from_expression(inner, acc)
+    glance.Panic(_, Some(inner)) -> collect_from_expression(inner, acc)
+    glance.Todo(_, Some(inner)) -> collect_from_expression(inner, acc)
+    glance.FieldAccess(_, container, _) ->
+      collect_from_expression(container, acc)
+    glance.TupleIndex(_, tuple, _) -> collect_from_expression(tuple, acc)
+    glance.NegateInt(_, inner) -> collect_from_expression(inner, acc)
+    glance.NegateBool(_, inner) -> collect_from_expression(inner, acc)
 
     glance.RecordUpdate(_, _, _, _, fields) ->
-      fields
-      |> list.flat_map(fn(field) {
+      list.fold(fields, acc, fn(acc, field) {
         case field.item {
-          Some(expr) -> walk_expression(expr, rules)
-          None -> []
+          Some(e) -> collect_from_expression(e, acc)
+          None -> acc
         }
       })
 
-    glance.FieldAccess(_, container, _) -> walk_expression(container, rules)
-
-    glance.TupleIndex(_, tuple, _) -> walk_expression(tuple, rules)
-
-    glance.NegateInt(_, inner) -> walk_expression(inner, rules)
-
-    glance.NegateBool(_, inner) -> walk_expression(inner, rules)
-
-    glance.BinaryOperator(_, _, left, right) -> {
-      let left_results = walk_expression(left, rules)
-      let right_results = walk_expression(right, rules)
-      list.append(left_results, right_results)
-    }
-
     glance.FnCapture(_, _, function, args_before, args_after) -> {
-      let fn_results = walk_expression(function, rules)
-      let walk_field = fn(field) {
+      let acc = collect_from_expression(function, acc)
+      let collect_field = fn(acc, field) {
         case field {
-          glance.LabelledField(_, _, item) -> walk_expression(item, rules)
-          glance.UnlabelledField(item) -> walk_expression(item, rules)
-          glance.ShorthandField(_, _) -> []
+          glance.LabelledField(_, _, item) ->
+            collect_from_expression(item, acc)
+          glance.UnlabelledField(item) -> collect_from_expression(item, acc)
+          glance.ShorthandField(_, _) -> acc
         }
       }
-      let before_results = args_before |> list.flat_map(walk_field)
-      let after_results = args_after |> list.flat_map(walk_field)
-      list.append(fn_results, list.append(before_results, after_results))
+      let acc = list.fold(args_before, acc, collect_field)
+      list.fold(args_after, acc, collect_field)
     }
 
     glance.BitString(_, segments) ->
-      segments
-      |> list.flat_map(fn(seg) { walk_expression(seg.0, rules) })
+      list.fold(segments, acc, fn(acc, seg) {
+        collect_from_expression(seg.0, acc)
+      })
 
     // Leaf nodes
     glance.Int(_, _)
@@ -191,9 +132,6 @@ fn walk_expression(expr: Expression, rules: List(Rule)) -> List(LintResult) {
     | glance.Variable(_, _)
     | glance.Panic(_, None)
     | glance.Todo(_, None)
-    | glance.Echo(_, None, _)
-    -> []
+    | glance.Echo(_, None, _) -> acc
   }
-
-  list.append(expr_results, child_results)
 }

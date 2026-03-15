@@ -7,7 +7,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(module, [short_variable_name.rule()], source, "test.gleam")
+  let r = short_variable_name.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 pub fn detects_single_letter_name_test() {
@@ -33,13 +38,11 @@ pub fn ok() { list.map([1], fn(x) { x }) }",
 }
 
 pub fn ignores_case_clause_pattern_test() {
-  let results =
-    lint_string("pub fn ok(val) { case val { x -> x } }")
+  let results = lint_string("pub fn ok(val) { case val { x -> x } }")
   list.length(results) |> should.equal(0)
 }
 
 pub fn detects_multiple_short_names_test() {
-  let results =
-    lint_string("pub fn bad() { let a = 1 \n let b = 2 \n a + b }")
+  let results = lint_string("pub fn bad() { let a = 1 \n let b = 2 \n a + b }")
   list.length(results) |> should.equal(2)
 }

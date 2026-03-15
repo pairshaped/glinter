@@ -9,12 +9,12 @@ import glinter/walker
 
 fn lint_string(source: String) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
-  walker.walk_module(
-    module,
-    [module_complexity.rule()],
-    source,
-    "test.gleam",
-  )
+  let r = module_complexity.rule()
+  let data = walker.collect(module)
+  r.check(data, source)
+  |> list.map(fn(result) {
+    rule.LintResult(..result, file: "test.gleam", severity: r.default_severity)
+  })
 }
 
 fn make_function_with_cases(name: String, count: Int) -> String {
@@ -42,8 +42,7 @@ pub fn ignores_module_at_threshold_test() {
 pub fn detects_module_over_threshold_test() {
   // 5 functions x 10 cases + 1 extra = 51
   let source =
-    make_n_functions(5, 10)
-    <> "\n\npub fn extra(x) { case x { _ -> 1 } }"
+    make_n_functions(5, 10) <> "\n\npub fn extra(x) { case x { _ -> 1 } }"
   let results = lint_string(source)
   list.length(results) |> should.equal(1)
   let assert [result] = results
