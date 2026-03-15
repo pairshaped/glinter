@@ -1,5 +1,5 @@
 name = "glinter"
-version = "2.6.0"
+version = "2.7.0"
 description = "A linter for the Gleam programming language"
 licences = ["MIT"]
 repository = { type = "github", user = "pairshaped", repo = "glinter" }
@@ -42,7 +42,6 @@ panic_without_message = "warning"
 string_inspect = "warning"
 duplicate_import = "warning"
 ffi_usage = "off"
-dynamic_sql = "off"
 
 # Ignore rules for specific file patterns
 [tools.glinter.ignore]

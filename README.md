@@ -101,10 +101,6 @@ done
 
 - **ffi_usage** (off): flags use of Gleam's private JS data API in `.mjs` files — numeric property access (`value[0]`, `tuple.0`), internal constructor checks (`$constructor`), runtime imports (`gleam.mjs`), and internal helpers (`makeError`, `isEqual`, `CustomType`, etc.). These representations can change between compiler versions. Off by default — enable if your project includes JS FFI. Scans `.mjs` files in configured source directories only. Community feedback and PRs welcome to improve pattern detection.
 
-### SQL
-
-- **dynamic_sql** (off): flags string concatenation (`<>`) where one operand is a string literal containing SQL keywords (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `WHERE`, `JOIN`, `FROM`). Off by default — enable if applicable. Community feedback and PRs welcome.
-
 ## Configuration
 
 Configuration lives in your project's `gleam.toml` under the `[tools.glinter]` key:
@@ -139,7 +135,6 @@ panic_without_message = "warning"
 string_inspect = "warning"
 duplicate_import = "warning"
 ffi_usage = "off"  # off by default
-dynamic_sql = "off"  # off by default
 ```
 
 Each rule can be set to `"error"`, `"warning"`, or `"off"`.

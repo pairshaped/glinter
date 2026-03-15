@@ -29,7 +29,6 @@ import glinter/rules/short_variable_name
 import glinter/rules/string_inspect
 import glinter/rules/todo_without_message
 import glinter/rules/unnecessary_variable
-import glinter/rules/dynamic_sql
 import glinter/rules/unqualified_import
 import glinter/rules/unwrap_used
 import glinter/ffi_usage
@@ -67,7 +66,6 @@ pub fn main() {
     duplicate_import.rule(),
     todo_without_message.rule(),
     unqualified_import.rule(),
-    dynamic_sql.rule(),
   ]
   let rules = apply_config(all_rules, cfg)
 
