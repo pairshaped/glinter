@@ -1,11 +1,11 @@
 import glance
 import gleam/list
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type Rule, Off, Rule, RuleResult}
 
 pub fn rule() -> Rule {
   Rule(
     name: "thrown_away_error",
-    default_severity: Warning,
+    default_severity: Off,
     needs_collect: True,
     check: check,
   )

@@ -12,7 +12,7 @@ pub fn detects_discarded_error_test() {
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "thrown_away_error"
-  let assert True = result.severity == rule.Warning
+  let assert True = result.severity == rule.Off
 }
 
 pub fn ignores_named_error_test() {
