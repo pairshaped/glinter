@@ -17,24 +17,30 @@ fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
 
 fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
   case expr {
-    // result.map_error(x, fn(_) { ... }) or result.replace_error(...)
+    // result.replace_error always discards the original error
     glance.Call(
       location,
-      glance.FieldAccess(_, glance.Variable(_, "result"), label),
+      glance.FieldAccess(_, glance.Variable(_, "result"), "replace_error"),
+      _,
+    ) -> [
+      RuleResult(
+        rule: "error_context_lost",
+        location: location,
+        message: "result.replace_error discards the original error — consider result.map_error to wrap it instead",
+      ),
+    ]
+    // result.map_error with fn(_) { ... } discards the original error
+    glance.Call(
+      location,
+      glance.FieldAccess(_, glance.Variable(_, "result"), "map_error"),
       args,
-    )
-      if label == "map_error" || label == "replace_error"
-    -> check_discards_error(location, label, args)
-    // x |> result.map_error(fn(_) { ... }) — pipe form has one fewer arg
-    // but the walker collects the Call node after pipe desugaring won't happen,
-    // so we also check for a single-arg call (the piped version)
+    ) -> check_map_error_discard(location, args)
     _ -> []
   }
 }
 
-fn check_discards_error(
+fn check_map_error_discard(
   location: glance.Span,
-  label: String,
   args: List(glance.Field(glance.Expression)),
 ) -> List(rule.RuleResult) {
   let has_discard =
@@ -56,9 +62,7 @@ fn check_discards_error(
       RuleResult(
         rule: "error_context_lost",
         location: location,
-        message: "result."
-          <> label
-          <> " discards the original error — consider wrapping it instead",
+        message: "result.map_error discards the original error — consider wrapping it instead",
       ),
     ]
     False -> []

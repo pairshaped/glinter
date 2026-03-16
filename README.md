@@ -67,7 +67,7 @@ done
 
 ### Error Handling
 
-- **error_context_lost** (warning): flags `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`
+- **error_context_lost** (warning): flags `result.replace_error` (which always discards the original error) and `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`
 - **stringly_typed_error** (warning): flags functions with `Result(x, String)` return types — use a custom error type instead
 - **thrown_away_error** (warning): flags `Error(_)` patterns in case expressions that discard the error value. Can be noisy in codebases with many fallback patterns — disable with `thrown_away_error = "off"` in config.
 
