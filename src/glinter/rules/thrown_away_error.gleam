@@ -42,7 +42,7 @@ fn check_pattern(pattern: glance.Pattern) -> List(rule.RuleResult) {
       RuleResult(
         rule: "thrown_away_error",
         location: location,
-        message: "Error value is discarded — consider logging or wrapping the error",
+        message: "Error value is discarded — consider logging or wrapping the error. If the error is Nil, use Error(Nil) instead to make that explicit",
       ),
     ]
     _ -> []
