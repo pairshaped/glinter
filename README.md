@@ -69,7 +69,7 @@ done
 
 - **error_context_lost** (warning): flags `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`
 - **stringly_typed_error** (warning): flags functions with `Result(x, String)` return types — use a custom error type instead
-- **thrown_away_error** (off): flags `Error(_)` patterns in case expressions that discard the error value. Off by default — `Error(_)` is common in web handlers and other code where you just need a fallback. Enable with `thrown_away_error = "warning"` in config.
+- **thrown_away_error** (warning): flags `Error(_)` patterns in case expressions that discard the error value. Can be noisy in codebases with many fallback patterns — disable with `thrown_away_error = "off"` in config.
 
 ### Type Annotations
 
@@ -146,7 +146,7 @@ unnecessary_string_concatenation = "warning"
 trailing_underscore = "warning"
 error_context_lost = "warning"
 stringly_typed_error = "warning"
-thrown_away_error = "off"  # off by default
+thrown_away_error = "warning"
 ffi_usage = "off"  # off by default
 ```
 
