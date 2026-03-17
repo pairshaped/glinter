@@ -15,10 +15,7 @@ pub fn detects_dot_numeric_access_test() {
 
 pub fn detects_dollar_constructor_test() {
   let results =
-    ffi_usage.check_source(
-      "test.mjs",
-      "if (value.$constructor === \"Ok\") {}",
-    )
+    ffi_usage.check_source("test.mjs", "if (value.$constructor === \"Ok\") {}")
   let assert True = list.length(results) == 1
 }
 
@@ -44,8 +41,7 @@ pub fn detects_custom_type_usage_test() {
 }
 
 pub fn detects_is_equal_test() {
-  let results =
-    ffi_usage.check_source("test.mjs", "if (isEqual(a, b)) {}")
+  let results = ffi_usage.check_source("test.mjs", "if (isEqual(a, b)) {}")
   let assert True = list.length(results) == 1
 }
 
@@ -56,14 +52,12 @@ pub fn detects_remainder_int_test() {
 }
 
 pub fn detects_divide_int_test() {
-  let results =
-    ffi_usage.check_source("test.mjs", "let d = divideInt(a, b);")
+  let results = ffi_usage.check_source("test.mjs", "let d = divideInt(a, b);")
   let assert True = list.length(results) == 1
 }
 
 pub fn detects_divide_float_test() {
-  let results =
-    ffi_usage.check_source("test.mjs", "let d = divideFloat(a, b);")
+  let results = ffi_usage.check_source("test.mjs", "let d = divideFloat(a, b);")
   let assert True = list.length(results) == 1
 }
 

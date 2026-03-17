@@ -1,10 +1,10 @@
 import glance
 import gleam/list
 import gleam/option.{Some}
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(
+pub fn rule() -> V2Rule {
+  V2Rule(
     name: "stringly_typed_error",
     default_severity: Warning,
     needs_collect: False,

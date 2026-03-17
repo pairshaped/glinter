@@ -1,10 +1,15 @@
 import glance
 import gleam/list
 import gleam/option.{None, Some}
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(name: "missing_type_annotation", default_severity: Warning, needs_collect: False, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "missing_type_annotation",
+    default_severity: Warning,
+    needs_collect: False,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {

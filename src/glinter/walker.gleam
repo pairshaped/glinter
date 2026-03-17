@@ -6,7 +6,6 @@
 /// stay in sync when glance adds new expression variants. The others are:
 /// analysis.gleam, rules/deep_nesting.gleam, rules/missing_labels.gleam,
 /// and unused_exports.gleam.
-
 import glance.{type Expression, type Module, type Statement}
 import gleam/list
 import gleam/option.{None, Some}
@@ -63,9 +62,7 @@ fn collect_from_expression(
 
     glance.Case(_, subjects, clauses) -> {
       let acc =
-        list.fold(subjects, acc, fn(acc, s) {
-          collect_from_expression(s, acc)
-        })
+        list.fold(subjects, acc, fn(acc, s) { collect_from_expression(s, acc) })
       list.fold(clauses, acc, fn(acc, clause) {
         collect_from_expression(clause.body, acc)
       })
@@ -75,8 +72,7 @@ fn collect_from_expression(
       let acc = collect_from_expression(function, acc)
       list.fold(arguments, acc, fn(acc, field) {
         case field {
-          glance.LabelledField(_, _, item) ->
-            collect_from_expression(item, acc)
+          glance.LabelledField(_, _, item) -> collect_from_expression(item, acc)
           glance.UnlabelledField(item) -> collect_from_expression(item, acc)
           glance.ShorthandField(_, _) -> acc
         }
@@ -121,8 +117,7 @@ fn collect_from_expression(
       let acc = collect_from_expression(function, acc)
       let collect_field = fn(acc, field) {
         case field {
-          glance.LabelledField(_, _, item) ->
-            collect_from_expression(item, acc)
+          glance.LabelledField(_, _, item) -> collect_from_expression(item, acc)
           glance.UnlabelledField(item) -> collect_from_expression(item, acc)
           glance.ShorthandField(_, _) -> acc
         }

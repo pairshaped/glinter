@@ -1,9 +1,9 @@
 import glance
 import gleam/list
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(
+pub fn rule() -> V2Rule {
+  V2Rule(
     name: "thrown_away_error",
     default_severity: Warning,
     needs_collect: True,
@@ -17,8 +17,7 @@ fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
 
 fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
   case expr {
-    glance.Case(_, _, clauses) ->
-      clauses |> list.flat_map(check_clause)
+    glance.Case(_, _, clauses) -> clauses |> list.flat_map(check_clause)
     _ -> []
   }
 }

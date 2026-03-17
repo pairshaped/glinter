@@ -1,7 +1,6 @@
 /// NOTE: Expression/pattern/type tree traversal here must stay in sync with
 /// walker.gleam, analysis.gleam, rules/deep_nesting.gleam, and
 /// rules/missing_labels.gleam when glance adds new variants.
-
 import glance.{
   type Expression, type Module, type Pattern, type Statement, type Type,
   Constant, CustomType, Definition, Function, Public, TypeAlias,
@@ -516,6 +515,7 @@ pub fn check_unused_exports(
               <> " '"
               <> pub_def.name
               <> "' is never used by another module",
+            details: "",
           ))
       }
     })

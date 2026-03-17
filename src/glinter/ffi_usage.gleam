@@ -18,10 +18,7 @@ const patterns = [
 
 /// Check a single source string for FFI anti-patterns.
 /// Returns LintResults with line numbers encoded in location.start.
-pub fn check_source(
-  file_path: String,
-  source: String,
-) -> List(rule.LintResult) {
+pub fn check_source(file_path: String, source: String) -> List(rule.LintResult) {
   let lines = string.split(source, "\n")
   lines
   |> list.index_map(fn(line, index) { check_line(file_path, line, index + 1) })
@@ -45,6 +42,7 @@ fn check_line(
             file: file_path,
             location: glance.Span(start: line_number, end: line_number),
             message: message,
+            details: "",
           ))
         False -> Error(Nil)
       }
@@ -72,6 +70,7 @@ fn check_numeric_access(
         file: file_path,
         location: glance.Span(start: line_number, end: line_number),
         message: "Numeric property access may rely on internal Gleam data representation",
+        details: "",
       ),
     ]
     False -> []
@@ -165,6 +164,7 @@ fn check_gleam_import(
         file: file_path,
         location: glance.Span(start: line_number, end: line_number),
         message: "Import from Gleam runtime internals — these APIs are not stable",
+        details: "",
       ),
     ]
     False -> []

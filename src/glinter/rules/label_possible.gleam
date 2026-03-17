@@ -1,10 +1,15 @@
 import glance
 import gleam/list
 import gleam/option.{None}
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(name: "label_possible", default_severity: Warning, needs_collect: False, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "label_possible",
+    default_severity: Warning,
+    needs_collect: False,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
@@ -16,12 +21,14 @@ fn check_function(func: glance.Function) -> List(rule.RuleResult) {
   let params = func.parameters
   // Skip functions with fewer than 2 params, or any unlabelled discard param
   // (you can't fully label a function that has an unlabelled discard)
-  let has_unlabelled_discard = list.any(params, fn(param) {
-    param.label == None && case param.name {
-      glance.Discarded(_) -> True
-      glance.Named(_) -> False
-    }
-  })
+  let has_unlabelled_discard =
+    list.any(params, fn(param) {
+      param.label == None
+      && case param.name {
+        glance.Discarded(_) -> True
+        glance.Named(_) -> False
+      }
+    })
   case list.length(params) >= 2 && !has_unlabelled_discard {
     False -> []
     True ->

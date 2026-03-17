@@ -1,16 +1,13 @@
 import glance
 import gleam/list
-import glinter/rule.{type LintResult, LintResult}
+import glinter/rule.{type LintResult, type V2Rule, LintResult}
 import glinter/walker
 
 /// Parse source and lint with a single rule, returning results with
 /// file and severity filled in (matching the orchestrator behaviour).
 /// Respects needs_collect to catch rules that accidentally access
 /// pre-collected data they did not request.
-pub fn lint_string(
-  source: String,
-  r: rule.Rule,
-) -> List(LintResult) {
+pub fn lint_string(source: String, r: V2Rule) -> List(LintResult) {
   let assert Ok(module) = glance.module(source)
   let data = case r.needs_collect {
     True -> walker.collect(module)
@@ -24,6 +21,7 @@ pub fn lint_string(
       file: "test.gleam",
       location: result.location,
       message: result.message,
+      details: "",
     )
   })
 }

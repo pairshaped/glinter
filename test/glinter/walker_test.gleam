@@ -1,6 +1,6 @@
 import glance
 import gleam/list
-import glinter/rule.{Error, Rule, RuleResult, Warning}
+import glinter/rule.{Error, RuleResult, V2Rule, Warning}
 import glinter/test_helpers
 
 fn check_for_panic(
@@ -11,7 +11,11 @@ fn check_for_panic(
   |> list.flat_map(fn(expr) {
     case expr {
       glance.Panic(location, _) -> [
-        RuleResult(rule: "test_panic", location: location, message: "found panic"),
+        RuleResult(
+          rule: "test_panic",
+          location: location,
+          message: "found panic",
+        ),
       ]
       _ -> []
     }
@@ -19,8 +23,8 @@ fn check_for_panic(
 }
 
 /// A dummy rule that flags every Panic expression
-fn panic_rule() -> rule.Rule {
-  Rule(
+fn panic_rule() -> rule.V2Rule {
+  V2Rule(
     name: "test_panic",
     default_severity: Error,
     needs_collect: True,
@@ -61,8 +65,9 @@ pub fn walk_fills_in_file_field_test() {
 
 pub fn walk_applies_rule_severity_override_test() {
   // Rule hardcodes Error in its check fn, but default_severity is Warning
-  let overridden_rule = Rule(..panic_rule(), default_severity: Warning)
-  let results = test_helpers.lint_string("pub fn bad() { panic }", overridden_rule)
+  let overridden_rule = V2Rule(..panic_rule(), default_severity: Warning)
+  let results =
+    test_helpers.lint_string("pub fn bad() { panic }", overridden_rule)
   let assert [result] = results
   let assert True = result.severity == Warning
 }

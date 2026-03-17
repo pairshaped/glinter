@@ -33,11 +33,7 @@ pub fn matches_double_star_glob_test() {
 pub fn double_star_matches_deeply_nested_test() {
   let ignores = dict.from_list([#("test/**/*.gleam", ["avoid_todo"])])
   let assert True =
-    ignore.is_rule_ignored(
-      "test/a/b/c/foo_test.gleam",
-      "avoid_todo",
-      ignores,
-    )
+    ignore.is_rule_ignored("test/a/b/c/foo_test.gleam", "avoid_todo", ignores)
 }
 
 pub fn no_match_outside_pattern_test() {

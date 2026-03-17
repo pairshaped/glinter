@@ -87,8 +87,7 @@ pub fn resolves_unqualified_value_imports_test() {
   let assert Ok(module) =
     glance.module("import myapp/users.{create, find_by_id}")
   let result = unused_exports.resolve_module_import(module, "myapp/users")
-  let assert True =
-    list.contains(result, unused_exports.QualifiedAs("users"))
+  let assert True = list.contains(result, unused_exports.QualifiedAs("users"))
   let assert True =
     list.contains(result, unused_exports.UnqualifiedValue("create"))
   let assert True =

@@ -2,12 +2,17 @@ import glance
 import gleam/int
 import gleam/list
 import glinter/analysis
-import glinter/rule.{type Rule, Rule, Off, RuleResult}
+import glinter/rule.{type V2Rule, Off, RuleResult, V2Rule}
 
 const threshold = 10
 
-pub fn rule() -> Rule {
-  Rule(name: "function_complexity", default_severity: Off, needs_collect: False, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "function_complexity",
+    default_severity: Off,
+    needs_collect: False,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {

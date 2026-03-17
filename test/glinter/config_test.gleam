@@ -52,8 +52,7 @@ gleam_stdlib = \">= 0.44.0\"
 echo = \"error\"
 "
   let assert Ok(c) = config.parse(toml)
-  let assert True =
-    dict.get(c.rules, "echo") == Ok(Some(config.SeverityError))
+  let assert True = dict.get(c.rules, "echo") == Ok(Some(config.SeverityError))
 }
 
 pub fn default_config_test() {

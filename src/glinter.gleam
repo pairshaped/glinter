@@ -6,10 +6,10 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import glinter/config
+import glinter/ffi_usage
 import glinter/ignore
 import glinter/reporter.{Json, Text}
-import glinter/rule.{type Rule, LintResult}
-import glinter/walker
+import glinter/rule.{type V2Rule, LintResult, V2Rule}
 import glinter/rules/assert_ok_pattern
 import glinter/rules/avoid_panic
 import glinter/rules/avoid_todo
@@ -27,8 +27,8 @@ import glinter/rules/panic_without_message
 import glinter/rules/prefer_guard_clause
 import glinter/rules/redundant_case
 import glinter/rules/short_variable_name
-import glinter/rules/stringly_typed_error
 import glinter/rules/string_inspect
+import glinter/rules/stringly_typed_error
 import glinter/rules/thrown_away_error
 import glinter/rules/todo_without_message
 import glinter/rules/trailing_underscore
@@ -36,8 +36,8 @@ import glinter/rules/unnecessary_string_concatenation
 import glinter/rules/unnecessary_variable
 import glinter/rules/unqualified_import
 import glinter/rules/unwrap_used
-import glinter/ffi_usage
 import glinter/unused_exports
+import glinter/walker
 import simplifile
 
 pub fn main() {
@@ -228,7 +228,7 @@ fn load_config(path: String) -> config.Config {
 fn lint_file(
   read_path: String,
   display_path: String,
-  rules: List(Rule),
+  rules: List(V2Rule),
   cfg: config.Config,
 ) -> Result(#(List(rule.LintResult), String, String), Nil) {
   case simplifile.read(read_path) {
@@ -248,8 +248,7 @@ fn lint_file(
           Error(Nil)
         }
         Ok(module) -> {
-          let needs_collect =
-            list.any(active_rules, fn(r) { r.needs_collect })
+          let needs_collect = list.any(active_rules, fn(r) { r.needs_collect })
           let data = case needs_collect {
             True -> walker.collect(module)
             False -> walker.module_only(module)
@@ -265,6 +264,7 @@ fn lint_file(
                   file: display_path,
                   location: result.location,
                   message: result.message,
+                  details: "",
                 )
               })
             })
@@ -275,16 +275,16 @@ fn lint_file(
   }
 }
 
-fn apply_config(rules: List(Rule), cfg: config.Config) -> List(Rule) {
+fn apply_config(rules: List(V2Rule), cfg: config.Config) -> List(V2Rule) {
   rules
   |> list.filter_map(fn(r) {
     // Apply config override, or keep default
     let resolved = case dict.get(cfg.rules, r.name) {
-      Ok(None) -> rule.Rule(..r, default_severity: rule.Off)
+      Ok(None) -> V2Rule(..r, default_severity: rule.Off)
       Ok(Some(config.SeverityError)) ->
-        rule.Rule(..r, default_severity: rule.Error)
+        V2Rule(..r, default_severity: rule.Error)
       Ok(Some(config.SeverityWarning)) ->
-        rule.Rule(..r, default_severity: rule.Warning)
+        V2Rule(..r, default_severity: rule.Warning)
       Error(_) -> r
     }
     // Filter out Off rules

@@ -1,10 +1,15 @@
 import glance
 import gleam/list
 import gleam/option.{None}
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(name: "prefer_guard_clause", default_severity: Warning, needs_collect: False, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "prefer_guard_clause",
+    default_severity: Warning,
+    needs_collect: False,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {

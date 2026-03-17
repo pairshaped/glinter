@@ -1,17 +1,21 @@
 /// NOTE: Expression tree traversal here must stay in sync with walker.gleam,
 /// analysis.gleam, rules/missing_labels.gleam, and unused_exports.gleam
 /// when glance adds new expression variants.
-
 import glance.{type Expression, type Statement}
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
 const threshold = 5
 
-pub fn rule() -> Rule {
-  Rule(name: "deep_nesting", default_severity: Warning, needs_collect: False, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "deep_nesting",
+    default_severity: Warning,
+    needs_collect: False,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {

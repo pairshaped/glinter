@@ -1,9 +1,9 @@
 import glance
 import gleam/list
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(
+pub fn rule() -> V2Rule {
+  V2Rule(
     name: "error_context_lost",
     default_severity: Warning,
     needs_collect: True,
@@ -40,8 +40,7 @@ fn check_map_error_discard(
     |> list.any(fn(field) {
       case field {
         glance.UnlabelledField(glance.Fn(_, [param], _, _))
-        | glance.LabelledField(_, _, glance.Fn(_, [param], _, _))
-        ->
+        | glance.LabelledField(_, _, glance.Fn(_, [param], _, _)) ->
           case param.name {
             glance.Discarded(_) -> True
             _ -> False

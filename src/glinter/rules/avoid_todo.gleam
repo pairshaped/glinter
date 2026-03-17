@@ -1,9 +1,14 @@
 import glance
 import gleam/list
-import glinter/rule.{type Rule, Error, Rule, RuleResult}
+import glinter/rule.{type V2Rule, Error, RuleResult, V2Rule}
 
-pub fn rule() -> Rule {
-  Rule(name: "avoid_todo", default_severity: Error, needs_collect: True, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "avoid_todo",
+    default_severity: Error,
+    needs_collect: True,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {

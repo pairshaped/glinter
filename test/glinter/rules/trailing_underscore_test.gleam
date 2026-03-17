@@ -5,10 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_trailing_underscore_test() {
   let results =
-    test_helpers.lint_string(
-      "pub fn bad_() { 1 }",
-      trailing_underscore.rule(),
-    )
+    test_helpers.lint_string("pub fn bad_() { 1 }", trailing_underscore.rule())
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "trailing_underscore"

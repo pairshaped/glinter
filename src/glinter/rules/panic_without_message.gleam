@@ -1,10 +1,15 @@
 import glance
 import gleam/list
 import gleam/option.{None}
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(name: "panic_without_message", default_severity: Warning, needs_collect: True, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "panic_without_message",
+    default_severity: Warning,
+    needs_collect: True,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {

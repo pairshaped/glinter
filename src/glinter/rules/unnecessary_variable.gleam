@@ -1,9 +1,14 @@
 import glance
 import gleam/list
-import glinter/rule.{type Rule, Rule, RuleResult, Warning}
+import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
 
-pub fn rule() -> Rule {
-  Rule(name: "unnecessary_variable", default_severity: Warning, needs_collect: True, check: check)
+pub fn rule() -> V2Rule {
+  V2Rule(
+    name: "unnecessary_variable",
+    default_severity: Warning,
+    needs_collect: True,
+    check: check,
+  )
 }
 
 fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
@@ -13,8 +18,7 @@ fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
     |> list.flat_map(fn(def) { check_trailing_let(def.definition.body) })
 
   // Also check nested blocks and anonymous fns
-  let nested_results =
-    data.expressions |> list.flat_map(check_expression)
+  let nested_results = data.expressions |> list.flat_map(check_expression)
 
   list.append(fn_results, nested_results)
 }
