@@ -1,27 +1,22 @@
 import glance
-import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "string_inspect",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "string_inspect")
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
-    glance.FieldAccess(location, glance.Variable(_, "string"), "inspect") -> [
-      RuleResult(
-        rule: "string_inspect",
-        location: location,
+fn check_expression(
+  expression: glance.Expression,
+  span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
+    glance.FieldAccess(_, glance.Variable(_, "string"), "inspect") -> [
+      rule.error(
         message: "Use of 'string.inspect' is discouraged outside of debugging",
+        details: "string.inspect produces debug representations, not user-facing text.",
+        location: span,
       ),
     ]
     _ -> []

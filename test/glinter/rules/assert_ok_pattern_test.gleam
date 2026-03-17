@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_let_assert_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { let assert Ok(x) = get() \n x }",
       assert_ok_pattern.rule(),
     )
@@ -17,7 +17,7 @@ pub fn detects_let_assert_test() {
 
 pub fn ignores_regular_let_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn good() { let x = 1 \n x }",
       assert_ok_pattern.rule(),
     )
@@ -26,7 +26,7 @@ pub fn ignores_regular_let_test() {
 
 pub fn ignores_case_pattern_match_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn good(x) { case x { Ok(v) -> v \n _ -> 0 } }",
       assert_ok_pattern.rule(),
     )

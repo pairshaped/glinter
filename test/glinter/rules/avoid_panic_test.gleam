@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_panic_test() {
   let results =
-    test_helpers.lint_string("pub fn bad() { panic }", avoid_panic.rule())
+    test_helpers.lint_string_rule("pub fn bad() { panic }", avoid_panic.rule())
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "avoid_panic"
@@ -14,7 +14,7 @@ pub fn detects_panic_test() {
 
 pub fn detects_panic_with_message_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { panic as \"oh no\" }",
       avoid_panic.rule(),
     )
@@ -23,12 +23,15 @@ pub fn detects_panic_with_message_test() {
 
 pub fn ignores_clean_code_test() {
   let results =
-    test_helpers.lint_string("pub fn good() { Ok(1) }", avoid_panic.rule())
+    test_helpers.lint_string_rule("pub fn good() { Ok(1) }", avoid_panic.rule())
   let assert True = results == []
 }
 
 pub fn detects_nested_panic_test() {
   let results =
-    test_helpers.lint_string("pub fn bad() { { panic } }", avoid_panic.rule())
+    test_helpers.lint_string_rule(
+      "pub fn bad() { { panic } }",
+      avoid_panic.rule(),
+    )
   let assert True = list.length(results) == 1
 }

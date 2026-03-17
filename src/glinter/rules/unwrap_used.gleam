@@ -1,24 +1,19 @@
 import glance
-import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "unwrap_used",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "unwrap_used")
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
+fn check_expression(
+  expression: glance.Expression,
+  span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
     glance.Call(
-      location,
+      _,
       glance.FieldAccess(_, glance.Variable(_, module_name), label),
       _,
     ) ->
@@ -26,14 +21,14 @@ fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
         "result" | "option" ->
           case label {
             "unwrap" | "lazy_unwrap" -> [
-              RuleResult(
-                rule: "unwrap_used",
-                location: location,
+              rule.error(
                 message: "Avoid "
                   <> module_name
                   <> "."
                   <> label
                   <> " — use a case expression to handle all variants",
+                details: "Unwrap crashes on unexpected values. Pattern match instead.",
+                location: span,
               ),
             ]
             _ -> []

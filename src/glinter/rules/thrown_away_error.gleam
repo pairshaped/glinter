@@ -1,35 +1,31 @@
 import glance
 import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "thrown_away_error",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "thrown_away_error")
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
+fn check_expression(
+  expression: glance.Expression,
+  _span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
     glance.Case(_, _, clauses) -> clauses |> list.flat_map(check_clause)
     _ -> []
   }
 }
 
-fn check_clause(clause: glance.Clause) -> List(rule.RuleResult) {
+fn check_clause(clause: glance.Clause) -> List(rule.RuleError) {
   clause.patterns
   |> list.flat_map(fn(pattern_group) {
     pattern_group |> list.flat_map(check_pattern)
   })
 }
 
-fn check_pattern(pattern: glance.Pattern) -> List(rule.RuleResult) {
+fn check_pattern(pattern: glance.Pattern) -> List(rule.RuleError) {
   case pattern {
     glance.PatternVariant(
       location: location,
@@ -38,10 +34,10 @@ fn check_pattern(pattern: glance.Pattern) -> List(rule.RuleResult) {
       arguments: [glance.UnlabelledField(glance.PatternDiscard(_, _))],
       with_spread: _,
     ) -> [
-      RuleResult(
-        rule: "thrown_away_error",
-        location: location,
+      rule.error(
         message: "Error value is discarded — prefer propagating with result.try or use. If this is a boundary, log and handle the error. If the error is Nil, use Error(Nil) instead to make that explicit",
+        details: "Discarding errors silently hides failures that may need attention.",
+        location: location,
       ),
     ]
     _ -> []

@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_todo_test() {
   let results =
-    test_helpers.lint_string("pub fn stub() { todo }", avoid_todo.rule())
+    test_helpers.lint_string_rule("pub fn stub() { todo }", avoid_todo.rule())
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "avoid_todo"
@@ -14,7 +14,7 @@ pub fn detects_todo_test() {
 
 pub fn detects_todo_with_message_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn stub() { todo as \"implement later\" }",
       avoid_todo.rule(),
     )
@@ -23,6 +23,6 @@ pub fn detects_todo_with_message_test() {
 
 pub fn ignores_clean_code_test() {
   let results =
-    test_helpers.lint_string("pub fn good() { Ok(1) }", avoid_todo.rule())
+    test_helpers.lint_string_rule("pub fn good() { Ok(1) }", avoid_todo.rule())
   let assert True = results == []
 }

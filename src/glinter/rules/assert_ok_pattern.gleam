@@ -1,27 +1,19 @@
 import glance
-import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "assert_ok_pattern",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "assert_ok_pattern")
+  |> rule.with_simple_statement_visitor(visitor: check_statement)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.statements |> list.flat_map(check_statement)
-}
-
-fn check_statement(stmt: glance.Statement) -> List(rule.RuleResult) {
-  case stmt {
+fn check_statement(statement: glance.Statement) -> List(rule.RuleError) {
+  case statement {
     glance.Assignment(location: location, kind: glance.LetAssert(_), ..) -> [
-      RuleResult(
-        rule: "assert_ok_pattern",
-        location: location,
+      rule.error(
         message: "let assert crashes on mismatch — handle the error with a case expression",
+        details: "let assert panics when the pattern does not match. Use case to handle all variants safely.",
+        location: location,
       ),
     ]
     _ -> []

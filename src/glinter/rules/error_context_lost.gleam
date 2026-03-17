@@ -1,32 +1,28 @@
 import glance
 import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "error_context_lost",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "error_context_lost")
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
+fn check_expression(
+  expression: glance.Expression,
+  span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
     // result.map_error with fn(_) { ... } discards the original error.
     // Note: replace_error is NOT flagged — it's the correct tool for
     // upgrading Nil errors (from list.find, int.parse, etc.) into
     // domain errors. If you don't need the original error, replace_error
     // is the right choice.
     glance.Call(
-      location,
+      _,
       glance.FieldAccess(_, glance.Variable(_, "result"), "map_error"),
       args,
-    ) -> check_map_error_discard(location, args)
+    ) -> check_map_error_discard(span, args)
     _ -> []
   }
 }
@@ -34,7 +30,7 @@ fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
 fn check_map_error_discard(
   location: glance.Span,
   args: List(glance.Field(glance.Expression)),
-) -> List(rule.RuleResult) {
+) -> List(rule.RuleError) {
   let has_discard =
     args
     |> list.any(fn(field) {
@@ -50,10 +46,10 @@ fn check_map_error_discard(
     })
   case has_discard {
     True -> [
-      RuleResult(
-        rule: "error_context_lost",
-        location: location,
+      rule.error(
         message: "result.map_error discards the original error — consider wrapping it instead",
+        details: "Discarding the original error loses context for debugging and error handling.",
+        location: location,
       ),
     ]
     False -> []

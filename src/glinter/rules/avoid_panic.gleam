@@ -1,27 +1,23 @@
 import glance
-import gleam/list
-import glinter/rule.{type V2Rule, Error, RuleResult, V2Rule}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "avoid_panic",
-    default_severity: Error,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "avoid_panic")
+  |> rule.with_default_severity(severity: rule.Error)
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
-    glance.Panic(location, _) -> [
-      RuleResult(
-        rule: "avoid_panic",
-        location: location,
+fn check_expression(
+  expression: glance.Expression,
+  span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
+    glance.Panic(..) -> [
+      rule.error(
         message: "Use Result types instead of panic",
+        details: "Panics crash the process. Handle errors with Result types instead.",
+        location: span,
       ),
     ]
     _ -> []

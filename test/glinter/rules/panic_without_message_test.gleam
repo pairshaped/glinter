@@ -4,7 +4,7 @@ import glinter/test_helpers
 
 pub fn detects_panic_without_message_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn main() { panic }",
       panic_without_message.rule(),
     )
@@ -15,7 +15,7 @@ pub fn detects_panic_without_message_test() {
 
 pub fn ignores_panic_with_message_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn main() { panic as \"should never happen\" }",
       panic_without_message.rule(),
     )
@@ -24,7 +24,7 @@ pub fn ignores_panic_with_message_test() {
 
 pub fn ignores_non_panic_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn main() { Nil }",
       panic_without_message.rule(),
     )

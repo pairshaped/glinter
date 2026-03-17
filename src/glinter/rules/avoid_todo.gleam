@@ -1,27 +1,23 @@
 import glance
-import gleam/list
-import glinter/rule.{type V2Rule, Error, RuleResult, V2Rule}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "avoid_todo",
-    default_severity: Error,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "avoid_todo")
+  |> rule.with_default_severity(severity: rule.Error)
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
-    glance.Todo(location, _) -> [
-      RuleResult(
-        rule: "avoid_todo",
-        location: location,
+fn check_expression(
+  expression: glance.Expression,
+  span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
+    glance.Todo(..) -> [
+      rule.error(
         message: "Implement this function instead of using todo",
+        details: "Todo expressions crash at runtime. Implement the actual logic.",
+        location: span,
       ),
     ]
     _ -> []

@@ -1,28 +1,23 @@
 import glance
-import gleam/list
 import gleam/option.{None}
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "redundant_case",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "redundant_case")
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.expressions |> list.flat_map(check_expression)
-}
-
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
-    glance.Case(location, _, [glance.Clause(guard: None, ..)]) -> [
-      RuleResult(
-        rule: "redundant_case",
-        location: location,
+fn check_expression(
+  expression: glance.Expression,
+  span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
+    glance.Case(_, _, [glance.Clause(guard: None, ..)]) -> [
+      rule.error(
         message: "Case expression has only one branch — use a let binding instead",
+        details: "A single-branch case without a guard is equivalent to a let binding.",
+        location: span,
       ),
     ]
     _ -> []

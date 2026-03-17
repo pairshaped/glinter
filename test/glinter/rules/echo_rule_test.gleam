@@ -5,7 +5,10 @@ import glinter/test_helpers
 
 pub fn detects_echo_test() {
   let results =
-    test_helpers.lint_string("pub fn debug() { echo 42 }", echo_rule.rule())
+    test_helpers.lint_string_rule(
+      "pub fn debug() { echo 42 }",
+      echo_rule.rule(),
+    )
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "echo"
@@ -14,6 +17,6 @@ pub fn detects_echo_test() {
 
 pub fn ignores_clean_code_test() {
   let results =
-    test_helpers.lint_string("pub fn good() { 42 }", echo_rule.rule())
+    test_helpers.lint_string_rule("pub fn good() { 42 }", echo_rule.rule())
   let assert True = results == []
 }

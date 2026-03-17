@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_concat_with_empty_right_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad(x) { x <> \"\" }",
       unnecessary_string_concatenation.rule(),
     )
@@ -17,7 +17,7 @@ pub fn detects_concat_with_empty_right_test() {
 
 pub fn detects_concat_with_empty_left_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad(x) { \"\" <> x }",
       unnecessary_string_concatenation.rule(),
     )
@@ -26,7 +26,7 @@ pub fn detects_concat_with_empty_left_test() {
 
 pub fn detects_two_literal_concat_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { \"foo\" <> \"bar\" }",
       unnecessary_string_concatenation.rule(),
     )
@@ -37,7 +37,7 @@ pub fn detects_two_literal_concat_test() {
 
 pub fn ignores_normal_concat_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok(x, y) { x <> y }",
       unnecessary_string_concatenation.rule(),
     )
@@ -46,7 +46,7 @@ pub fn ignores_normal_concat_test() {
 
 pub fn ignores_concat_with_nonempty_literal_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok(x) { x <> \" suffix\" }",
       unnecessary_string_concatenation.rule(),
     )

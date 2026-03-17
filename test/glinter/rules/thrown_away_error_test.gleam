@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_discarded_error_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad(r) { case r { Ok(v) -> v \n Error(_) -> 0 } }",
       thrown_away_error.rule(),
     )
@@ -17,7 +17,7 @@ pub fn detects_discarded_error_test() {
 
 pub fn ignores_named_error_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok(r) { case r { Ok(v) -> v \n Error(e) -> handle(e) } }",
       thrown_away_error.rule(),
     )
@@ -26,7 +26,7 @@ pub fn ignores_named_error_test() {
 
 pub fn ignores_non_error_discard_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok(r) { case r { Ok(_) -> 1 \n Error(e) -> handle(e) } }",
       thrown_away_error.rule(),
     )
@@ -35,7 +35,7 @@ pub fn ignores_non_error_discard_test() {
 
 pub fn ignores_error_nil_pattern_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok(r) { case r { Ok(v) -> v \n Error(Nil) -> 0 } }",
       thrown_away_error.rule(),
     )
@@ -44,7 +44,7 @@ pub fn ignores_error_nil_pattern_test() {
 
 pub fn detects_named_discard_error_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad(r) { case r { Ok(v) -> v \n Error(_err) -> 0 } }",
       thrown_away_error.rule(),
     )

@@ -50,16 +50,27 @@ pub fn main() {
   let cfg = load_config(config_path)
   let show_stats = show_stats || cfg.stats
 
-  let all_rules = [
+  // v3 rules (native Rule type — no conversion needed)
+  let v3_rules = [
     avoid_panic.rule(),
     avoid_todo.rule(),
     echo_rule.rule(),
     assert_ok_pattern.rule(),
+    redundant_case.rule(),
+    unwrap_used.rule(),
+    panic_without_message.rule(),
+    string_inspect.rule(),
+    todo_without_message.rule(),
+    unnecessary_string_concatenation.rule(),
+    error_context_lost.rule(),
+    thrown_away_error.rule(),
+  ]
+
+  // v2 rules (still need from_v2_rule conversion)
+  let v2_rules = [
     discarded_result.rule(),
     short_variable_name.rule(),
     unnecessary_variable.rule(),
-    redundant_case.rule(),
-    unwrap_used.rule(),
     deep_nesting.rule(),
     function_complexity.rule(),
     module_complexity.rule(),
@@ -67,18 +78,12 @@ pub fn main() {
     label_possible.rule(),
     missing_labels.rule(),
     missing_type_annotation.rule(),
-    panic_without_message.rule(),
-    string_inspect.rule(),
     duplicate_import.rule(),
-    todo_without_message.rule(),
     unqualified_import.rule(),
-    unnecessary_string_concatenation.rule(),
     trailing_underscore.rule(),
-    error_context_lost.rule(),
     stringly_typed_error.rule(),
-    thrown_away_error.rule(),
   ]
-  let rules = apply_config(all_rules, cfg)
+  let rules = apply_config(v2_rules, cfg)
 
   // Resolve paths: CLI args > config include > default src/
   let effective_paths = case paths {
@@ -123,13 +128,15 @@ pub fn main() {
   let parsed_files = list.reverse(parsed_files)
   let sources = list.reverse(sources)
 
-  // Convert V2 rules to new Rule type and run through the runner
-  let new_rules =
+  // Convert V2 rules and combine with native v3 rules
+  let converted_v2_rules =
     list.map(rules, fn(r) {
       rule.from_v2_rule(v2: r, module_data_builder: build_module_data)
     })
+  let v3_filtered = apply_v3_config(v3_rules, cfg)
+  let all_rules = list.append(v3_filtered, converted_v2_rules)
   let per_file_results =
-    runner.run(rules: new_rules, files: parsed_files, config: cfg)
+    runner.run(rules: all_rules, files: parsed_files, config: cfg)
 
   // Cross-module: unused exports detection (special-cased until ported)
   let unused_export_results = run_unused_exports(sources, project_prefix, cfg)
@@ -253,6 +260,19 @@ fn apply_config(rules: List(V2Rule), cfg: config.Config) -> List(V2Rule) {
     case resolved.default_severity {
       rule.Off -> Error(Nil)
       _ -> Ok(resolved)
+    }
+  })
+}
+
+fn apply_v3_config(
+  rules: List(rule.Rule),
+  cfg: config.Config,
+) -> List(rule.Rule) {
+  rules
+  |> list.filter(fn(r) {
+    case dict.get(cfg.rules, rule.name(r)) {
+      Ok(None) -> False
+      _ -> True
     }
   })
 }
