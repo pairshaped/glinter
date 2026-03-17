@@ -35,3 +35,33 @@ pub fn detects_nested_panic_test() {
     )
   let assert True = list.length(results) == 1
 }
+
+pub fn allows_panic_in_external_type_exhaustive_match_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "import external/lib
+pub fn convert(value: lib.Param) -> Int {
+  case value {
+    lib.Supported(v) -> v
+    lib.Unsupported(_) -> panic as \"not supported\"
+  }
+}",
+      avoid_panic.rule(),
+    )
+  let assert True = results == []
+}
+
+pub fn still_flags_panic_in_own_module_match_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "type MyType { A  B }
+pub fn bad(value: MyType) -> Int {
+  case value {
+    A -> 1
+    B -> panic as \"shouldn't happen\"
+  }
+}",
+      avoid_panic.rule(),
+    )
+  let assert True = list.length(results) == 1
+}
