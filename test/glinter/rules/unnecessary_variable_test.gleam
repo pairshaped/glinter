@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_trailing_let_in_function_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { let x = 1 \n x }",
       unnecessary_variable.rule(),
     )
@@ -17,7 +17,7 @@ pub fn detects_trailing_let_in_function_test() {
 
 pub fn ignores_different_names_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok() { let x = 1 \n y }",
       unnecessary_variable.rule(),
     )
@@ -26,7 +26,7 @@ pub fn ignores_different_names_test() {
 
 pub fn ignores_statements_between_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok() { let x = 1 \n do_something() \n x }",
       unnecessary_variable.rule(),
     )
@@ -35,7 +35,7 @@ pub fn ignores_statements_between_test() {
 
 pub fn detects_in_block_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { { let x = 1 \n x } }",
       unnecessary_variable.rule(),
     )
@@ -44,7 +44,7 @@ pub fn detects_in_block_test() {
 
 pub fn detects_in_case_branch_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad(v) { case v { _ -> { let x = 1 \n x } } }",
       unnecessary_variable.rule(),
     )
@@ -53,7 +53,7 @@ pub fn detects_in_case_branch_test() {
 
 pub fn detects_in_anonymous_fn_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { fn() { let x = 1 \n x } }",
       unnecessary_variable.rule(),
     )
@@ -62,7 +62,7 @@ pub fn detects_in_anonymous_fn_test() {
 
 pub fn ignores_pattern_match_assignment_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok() { let #(a, _) = get() \n a }",
       unnecessary_variable.rule(),
     )

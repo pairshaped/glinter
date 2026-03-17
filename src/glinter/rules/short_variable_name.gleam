@@ -1,23 +1,15 @@
 import glance
-import gleam/list
 import gleam/string
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "short_variable_name",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "short_variable_name")
+  |> rule.with_simple_statement_visitor(visitor: check_statement)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.statements |> list.flat_map(check_statement)
-}
-
-fn check_statement(stmt: glance.Statement) -> List(rule.RuleResult) {
-  case stmt {
+fn check_statement(statement: glance.Statement) -> List(rule.RuleError) {
+  case statement {
     glance.Assignment(
       location: location,
       kind: glance.Let,
@@ -26,12 +18,12 @@ fn check_statement(stmt: glance.Statement) -> List(rule.RuleResult) {
     ) ->
       case string.length(name) == 1 {
         True -> [
-          RuleResult(
-            rule: "short_variable_name",
-            location: location,
+          rule.error(
             message: "Variable name '"
               <> name
               <> "' is too short — use a descriptive name",
+            details: "Single-character variable names hurt readability. Use descriptive names.",
+            location: location,
           ),
         ]
         False -> []

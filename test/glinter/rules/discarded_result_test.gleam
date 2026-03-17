@@ -5,7 +5,7 @@ import glinter/test_helpers
 
 pub fn detects_discarded_result_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn bad() { let _ = get() \n 1 }",
       discarded_result.rule(),
     )
@@ -17,7 +17,7 @@ pub fn detects_discarded_result_test() {
 
 pub fn ignores_named_discard_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok() { let _result = get() \n 1 }",
       discarded_result.rule(),
     )
@@ -26,7 +26,7 @@ pub fn ignores_named_discard_test() {
 
 pub fn ignores_regular_assignment_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok() { let x = 1 \n x }",
       discarded_result.rule(),
     )
@@ -35,7 +35,7 @@ pub fn ignores_regular_assignment_test() {
 
 pub fn ignores_let_assert_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn ok() { let assert Ok(x) = get() \n x }",
       discarded_result.rule(),
     )

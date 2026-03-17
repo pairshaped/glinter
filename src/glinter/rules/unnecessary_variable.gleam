@@ -1,37 +1,33 @@
 import glance
 import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "unnecessary_variable",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "unnecessary_variable")
+  |> rule.with_simple_function_visitor(visitor: check_function)
+  |> rule.with_simple_expression_visitor(visitor: check_expression)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  // Check function bodies directly
-  let fn_results =
-    data.module.functions
-    |> list.flat_map(fn(def) { check_trailing_let(def.definition.body) })
-
-  // Also check nested blocks and anonymous fns
-  let nested_results = data.expressions |> list.flat_map(check_expression)
-
-  list.append(fn_results, nested_results)
+fn check_function(
+  function: glance.Function,
+  _span: glance.Span,
+) -> List(rule.RuleError) {
+  check_trailing_let(function.body)
 }
 
-fn check_expression(expr: glance.Expression) -> List(rule.RuleResult) {
-  case expr {
+fn check_expression(
+  expression: glance.Expression,
+  _span: glance.Span,
+) -> List(rule.RuleError) {
+  case expression {
     glance.Block(_, stmts) -> check_trailing_let(stmts)
     glance.Fn(_, _, _, body) -> check_trailing_let(body)
     _ -> []
   }
 }
 
-fn check_trailing_let(stmts: List(glance.Statement)) -> List(rule.RuleResult) {
+fn check_trailing_let(stmts: List(glance.Statement)) -> List(rule.RuleError) {
   case list.reverse(stmts) {
     [
       glance.Expression(glance.Variable(_, var_name)),
@@ -44,12 +40,12 @@ fn check_trailing_let(stmts: List(glance.Statement)) -> List(rule.RuleResult) {
     ]
       if name == var_name
     -> [
-      RuleResult(
-        rule: "unnecessary_variable",
-        location: location,
+      rule.error(
         message: "Variable '"
           <> name
           <> "' is immediately returned — just use the expression directly",
+        details: "Assigning to a variable and immediately returning it adds unnecessary noise.",
+        location: location,
       ),
     ]
     _ -> []

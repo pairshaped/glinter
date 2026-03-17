@@ -289,6 +289,17 @@ pub fn to_module_rule(schema: ModuleRuleSchema(context)) -> Rule {
   )
 }
 
+/// Build a module Rule from a custom run function.
+/// Use this when a rule needs access to the full module before visitor
+/// traversal (e.g. pre-collecting function signatures).
+pub fn module_rule_from_fn(
+  name name: String,
+  default_severity default_severity: Severity,
+  run run: fn(glance.Module, String) -> List(RuleError),
+) -> Rule {
+  ModuleRule(name: name, default_severity: default_severity, run: run)
+}
+
 // --- Project rule builder functions ---
 
 /// Create a new project rule schema with an initial project context.

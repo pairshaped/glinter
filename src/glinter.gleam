@@ -72,17 +72,16 @@ pub fn main() {
     prefer_guard_clause.rule(),
     duplicate_import.rule(),
     unqualified_import.rule(),
-  ]
-
-  // v2 rules (still need from_v2_rule conversion)
-  let v2_rules = [
-    discarded_result.rule(),
-    short_variable_name.rule(),
-    unnecessary_variable.rule(),
     deep_nesting.rule(),
     module_complexity.rule(),
     missing_labels.rule(),
+    short_variable_name.rule(),
+    unnecessary_variable.rule(),
+    discarded_result.rule(),
   ]
+
+  // v2 rules (still need from_v2_rule conversion)
+  let v2_rules = []
   let rules = apply_config(v2_rules, cfg)
 
   // Resolve paths: CLI args > config include > default src/

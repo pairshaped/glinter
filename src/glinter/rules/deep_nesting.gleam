@@ -1,181 +1,70 @@
-/// NOTE: Expression tree traversal here must stay in sync with walker.gleam,
-/// analysis.gleam, rules/missing_labels.gleam, and unused_exports.gleam
-/// when glance adds new expression variants.
-import glance.{type Expression, type Statement}
+import glance
 import gleam/int
-import gleam/list
-import gleam/option.{None, Some}
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
 const threshold = 5
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "deep_nesting",
-    default_severity: Warning,
-    needs_collect: False,
-    check: check,
-  )
+type Context {
+  Context(depth: Int)
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.module.functions
-  |> list.flat_map(fn(def) { check_stmts_depth(def.definition.body, 1) })
+pub fn rule() -> rule.Rule {
+  rule.new_with_context(name: "deep_nesting", initial: Context(depth: 0))
+  |> rule.with_function_visitor(visitor: on_function)
+  |> rule.with_expression_enter_visitor(visitor: on_enter)
+  |> rule.with_expression_exit_visitor(visitor: on_exit)
+  |> rule.to_module_rule()
 }
 
-fn check_stmts_depth(
-  stmts: List(Statement),
-  depth: Int,
-) -> List(rule.RuleResult) {
-  stmts
-  |> list.flat_map(fn(stmt) { check_stmt_depth(stmt, depth) })
+/// Reset depth to 1 for each top-level function body (the function body
+/// itself counts as the first nesting level, matching V2 behaviour).
+fn on_function(
+  _function: glance.Function,
+  _span: glance.Span,
+  _context: Context,
+) -> #(List(rule.RuleError), Context) {
+  #([], Context(depth: 1))
 }
 
-fn check_stmt_depth(stmt: Statement, depth: Int) -> List(rule.RuleResult) {
-  case stmt {
-    glance.Expression(expr) -> check_expr_depth(expr, depth)
-    glance.Assignment(value: expr, ..) -> check_expr_depth(expr, depth)
-    glance.Use(function: expr, ..) -> check_expr_depth(expr, depth)
-    glance.Assert(expression: expr, ..) -> check_expr_depth(expr, depth)
+fn on_enter(
+  expression: glance.Expression,
+  span: glance.Span,
+  context: Context,
+) -> #(List(rule.RuleError), Context) {
+  case expression {
+    glance.Block(..) | glance.Case(..) | glance.Fn(..) -> {
+      let new_depth = context.depth + 1
+      // Report only at the exact crossing point (threshold + 1), not deeper.
+      // The v3 visitor always recurses into children, unlike the V2 version
+      // which stops at the violation. This ensures one report per nesting chain.
+      let errors = case new_depth == threshold + 1 {
+        True -> [
+          rule.error(
+            message: "Nesting is "
+              <> int.to_string(new_depth)
+              <> " levels deep — consider extracting a function or using early returns",
+            details: "Deeply nested code is hard to read and maintain. Extract inner logic into named functions.",
+            location: span,
+          ),
+        ]
+        False -> []
+      }
+      #(errors, Context(depth: new_depth))
+    }
+    _ -> #([], context)
   }
 }
 
-fn check_expr_depth(expr: Expression, depth: Int) -> List(rule.RuleResult) {
-  case expr {
-    glance.Block(location, stmts) -> {
-      let new_depth = depth + 1
-      case new_depth > threshold {
-        True -> [
-          RuleResult(
-            rule: "deep_nesting",
-            location: location,
-            message: "Nesting is "
-              <> int.to_string(new_depth)
-              <> " levels deep — consider extracting a function or using early returns",
-          ),
-        ]
-        False -> check_stmts_depth(stmts, new_depth)
-      }
-    }
-
-    glance.Case(location, subjects, clauses) -> {
-      let new_depth = depth + 1
-      case new_depth > threshold {
-        True -> [
-          RuleResult(
-            rule: "deep_nesting",
-            location: location,
-            message: "Nesting is "
-              <> int.to_string(new_depth)
-              <> " levels deep — consider extracting a function or using early returns",
-          ),
-        ]
-        False -> {
-          let subject_results =
-            subjects
-            |> list.flat_map(fn(s) { check_expr_depth(s, new_depth) })
-          let clause_results =
-            clauses
-            |> list.flat_map(fn(clause) {
-              check_expr_depth(clause.body, new_depth)
-            })
-          list.append(subject_results, clause_results)
-        }
-      }
-    }
-
-    glance.Fn(location, _, _, body) -> {
-      let new_depth = depth + 1
-      case new_depth > threshold {
-        True -> [
-          RuleResult(
-            rule: "deep_nesting",
-            location: location,
-            message: "Nesting is "
-              <> int.to_string(new_depth)
-              <> " levels deep — consider extracting a function or using early returns",
-          ),
-        ]
-        False -> check_stmts_depth(body, new_depth)
-      }
-    }
-
-    // Recurse into non-nesting expressions
-    glance.Call(_, function, arguments) -> {
-      let fn_results = check_expr_depth(function, depth)
-      let arg_results =
-        arguments
-        |> list.flat_map(fn(field) {
-          case field {
-            glance.LabelledField(_, _, item) -> check_expr_depth(item, depth)
-            glance.UnlabelledField(item) -> check_expr_depth(item, depth)
-            glance.ShorthandField(_, _) -> []
-          }
-        })
-      list.append(fn_results, arg_results)
-    }
-
-    glance.BinaryOperator(_, _, left, right) ->
-      list.append(check_expr_depth(left, depth), check_expr_depth(right, depth))
-
-    glance.Tuple(_, elements) ->
-      elements |> list.flat_map(fn(e) { check_expr_depth(e, depth) })
-
-    glance.List(_, elements, rest) -> {
-      let el_results =
-        elements |> list.flat_map(fn(e) { check_expr_depth(e, depth) })
-      let rest_results = case rest {
-        Some(r) -> check_expr_depth(r, depth)
-        None -> []
-      }
-      list.append(el_results, rest_results)
-    }
-
-    glance.Echo(_, Some(inner), _) -> check_expr_depth(inner, depth)
-    glance.Panic(_, Some(inner)) -> check_expr_depth(inner, depth)
-    glance.Todo(_, Some(inner)) -> check_expr_depth(inner, depth)
-    glance.FieldAccess(_, container, _) -> check_expr_depth(container, depth)
-    glance.TupleIndex(_, tuple, _) -> check_expr_depth(tuple, depth)
-    glance.NegateInt(_, inner) -> check_expr_depth(inner, depth)
-    glance.NegateBool(_, inner) -> check_expr_depth(inner, depth)
-
-    glance.RecordUpdate(_, _, _, _, fields) ->
-      fields
-      |> list.flat_map(fn(field) {
-        case field.item {
-          Some(e) -> check_expr_depth(e, depth)
-          None -> []
-        }
-      })
-
-    glance.FnCapture(_, _, function, args_before, args_after) -> {
-      let walk_field = fn(field) {
-        case field {
-          glance.LabelledField(_, _, item) -> check_expr_depth(item, depth)
-          glance.UnlabelledField(item) -> check_expr_depth(item, depth)
-          glance.ShorthandField(_, _) -> []
-        }
-      }
-      list.append(
-        check_expr_depth(function, depth),
-        list.append(
-          list.flat_map(args_before, walk_field),
-          list.flat_map(args_after, walk_field),
-        ),
-      )
-    }
-
-    glance.BitString(_, segments) ->
-      segments
-      |> list.flat_map(fn(seg) { check_expr_depth(seg.0, depth) })
-
-    // Leaf nodes
-    glance.Int(_, _)
-    | glance.Float(_, _)
-    | glance.String(_, _)
-    | glance.Variable(_, _)
-    | glance.Panic(_, None)
-    | glance.Todo(_, None)
-    | glance.Echo(_, None, _) -> []
+fn on_exit(
+  expression: glance.Expression,
+  _span: glance.Span,
+  context: Context,
+) -> #(List(rule.RuleError), Context) {
+  case expression {
+    glance.Block(..) | glance.Case(..) | glance.Fn(..) -> #(
+      [],
+      Context(depth: context.depth - 1),
+    )
+    _ -> #([], context)
   }
 }

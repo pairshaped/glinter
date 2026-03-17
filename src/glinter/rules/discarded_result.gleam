@@ -1,32 +1,24 @@
 import glance
-import gleam/list
-import glinter/rule.{type V2Rule, RuleResult, V2Rule, Warning}
+import glinter/rule
 
-pub fn rule() -> V2Rule {
-  V2Rule(
-    name: "discarded_result",
-    default_severity: Warning,
-    needs_collect: True,
-    check: check,
-  )
+pub fn rule() -> rule.Rule {
+  rule.new(name: "discarded_result")
+  |> rule.with_simple_statement_visitor(visitor: check_statement)
+  |> rule.to_module_rule()
 }
 
-fn check(data: rule.ModuleData, _source: String) -> List(rule.RuleResult) {
-  data.statements |> list.flat_map(check_statement)
-}
-
-fn check_statement(stmt: glance.Statement) -> List(rule.RuleResult) {
-  case stmt {
+fn check_statement(statement: glance.Statement) -> List(rule.RuleError) {
+  case statement {
     glance.Assignment(
       location: location,
       kind: glance.Let,
       pattern: glance.PatternDiscard(_, ""),
       ..,
     ) -> [
-      RuleResult(
-        rule: "discarded_result",
-        location: location,
+      rule.error(
         message: "Result of this expression is being discarded — handle the error or use an explicit name",
+        details: "Discarding results with `let _ = ...` hides potential errors. Handle the Result or use a named discard like `let _response = ...`.",
+        location: location,
       ),
     ]
     _ -> []

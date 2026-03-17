@@ -23,7 +23,7 @@ fn make_n_functions(count: Int, cases_each: Int) -> String {
 pub fn ignores_module_at_threshold_test() {
   // 10 functions x 10 cases each = 100
   let source = make_n_functions(10, 10)
-  let results = test_helpers.lint_string(source, module_complexity.rule())
+  let results = test_helpers.lint_string_rule(source, module_complexity.rule())
   let assert True = results == []
 }
 
@@ -31,7 +31,7 @@ pub fn detects_module_over_threshold_test() {
   // 10 functions x 10 cases + 1 extra = 101
   let source =
     make_n_functions(10, 10) <> "\n\npub fn extra(x) { case x { _ -> 1 } }"
-  let results = test_helpers.lint_string(source, module_complexity.rule())
+  let results = test_helpers.lint_string_rule(source, module_complexity.rule())
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "module_complexity"
@@ -40,7 +40,7 @@ pub fn detects_module_over_threshold_test() {
 
 pub fn ignores_simple_module_test() {
   let results =
-    test_helpers.lint_string(
+    test_helpers.lint_string_rule(
       "pub fn f() { 1 }\npub fn g() { 2 }",
       module_complexity.rule(),
     )
