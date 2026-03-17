@@ -230,6 +230,31 @@ When `--stats` is enabled, a `stats` object is included:
 }
 ```
 
+## Custom Rules (Plugins)
+
+Add project-specific rules by calling `glinter.run` with extra rules from your own packages:
+
+```gleam
+// test/review.gleam
+import glinter
+import my_project/rules
+
+pub fn main() {
+  glinter.run(extra_rules: [
+    rules.no_raw_sql(),
+    rules.require_org_id_filter(),
+  ])
+}
+```
+
+```sh
+gleam run -m review
+```
+
+Custom rules use the same builder API as built-in rules and get the same config treatment (on/off/severity in `gleam.toml`, file-level ignores). See `src/glinter/rule.gleam` for the API.
+
+If you write a rule that would be useful to the broader Gleam community, PRs are welcome. Contributed rules can ship with a default severity of `off` so projects opt in explicitly.
+
 ## Running Tests
 
 ```sh
