@@ -27,7 +27,7 @@ fn check_expression(
                   <> module_name
                   <> "."
                   <> label
-                  <> " — consider whether the error should be handled explicitly",
+                  <> ": consider whether the error should be handled explicitly",
                 details: "Unwrap silently replaces errors with a default value. If the error represents a real failure, handle it with case or propagate with result.try. If the default is intentional (optional config, end of fallback chain), unwrap may be appropriate.",
                 location: span,
               ),

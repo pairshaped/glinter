@@ -43,7 +43,7 @@ fn check_trailing_let(stmts: List(glance.Statement)) -> List(rule.RuleError) {
       rule.error(
         message: "Variable '"
           <> name
-          <> "' is immediately returned — just use the expression directly",
+          <> "' is immediately returned, just use the expression directly",
         details: "Assigning to a variable and immediately returning it adds unnecessary noise.",
         location: location,
       ),

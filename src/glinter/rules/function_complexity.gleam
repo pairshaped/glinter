@@ -24,7 +24,7 @@ fn check_function(
           <> function.name
           <> "' has a complexity of "
           <> int.to_string(count)
-          <> " — consider splitting into smaller functions",
+          <> ", consider splitting into smaller functions",
         details: "Complex functions are harder to test and maintain. Consider extracting helper functions.",
         location: span,
       ),

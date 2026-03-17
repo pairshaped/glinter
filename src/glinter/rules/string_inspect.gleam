@@ -81,7 +81,7 @@ fn check_expression(
         False -> #(
           [
             rule.error(
-              message: "string.inspect produces debug output — use proper serialization for concrete types",
+              message: "string.inspect produces debug output: use proper serialization for concrete types",
               details: "string.inspect is only appropriate for generic parameters or error values where no other serialization is available. For concrete types, implement a dedicated to_string or to_json function.",
               location: span,
             ),
@@ -96,9 +96,7 @@ fn check_expression(
 }
 
 /// Extract the variable name from an Error(var) pattern.
-fn extract_error_bound_var(
-  pattern: glance.Pattern,
-) -> Result(String, Nil) {
+fn extract_error_bound_var(pattern: glance.Pattern) -> Result(String, Nil) {
   case pattern {
     glance.PatternVariant(
       constructor: "Error",

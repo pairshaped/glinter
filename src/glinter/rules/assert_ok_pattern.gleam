@@ -29,12 +29,14 @@ fn check_statement(
   context: Context,
 ) -> #(List(rule.RuleError), Context) {
   case statement, context.current_function {
-    glance.Assignment(kind: glance.LetAssert(_), ..), Some("main") ->
-      #([], context)
+    glance.Assignment(kind: glance.LetAssert(_), ..), Some("main") -> #(
+      [],
+      context,
+    )
     glance.Assignment(location: location, kind: glance.LetAssert(_), ..), _ -> #(
       [
         rule.error(
-          message: "let assert crashes on mismatch — return Result and let the caller handle the error",
+          message: "let assert crashes on mismatch: return Result and let the caller handle the error",
           details: "Functions should return Result types, not crash internally. If crash-on-failure is appropriate, move the let assert to main() where startup failures are expected. Only main() is allowed to use let assert.",
           location: location,
         ),

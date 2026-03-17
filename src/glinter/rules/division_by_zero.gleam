@@ -17,7 +17,7 @@ fn check_expression(
       case is_division(operator) && is_zero(right) {
         True -> [
           rule.error(
-            message: "Division by zero — Gleam returns 0 instead of crashing, which silently produces wrong results",
+            message: "Division by literal zero: Gleam returns 0 instead of crashing, which silently produces wrong results",
             details: "Gleam's division by literal zero returns 0 (not an error or crash). This is almost always a logic bug. Check the divisor or guard against zero before dividing.",
             location: span,
           ),

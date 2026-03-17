@@ -15,7 +15,7 @@ fn check_expression(
   case expression {
     glance.Case(_, _, [glance.Clause(guard: None, ..)]) -> [
       rule.error(
-        message: "Case expression has only one branch — use a let binding instead",
+        message: "Case expression has only one branch, use a let binding instead",
         details: "A single-branch case without a guard is equivalent to a let binding.",
         location: span,
       ),

@@ -15,7 +15,7 @@ fn check_expression(
     glance.BinaryOperator(_, glance.Concatenate, glance.String(_, ""), _)
     | glance.BinaryOperator(_, glance.Concatenate, _, glance.String(_, "")) -> [
       rule.error(
-        message: "Concatenation with an empty string has no effect — remove it",
+        message: "Concatenation with an empty string has no effect, remove it",
         details: "Empty string concatenation is a no-op and adds visual noise.",
         location: span,
       ),
@@ -27,7 +27,7 @@ fn check_expression(
       glance.String(_, _),
     ) -> [
       rule.error(
-        message: "Concatenation of two string literals — combine them into one string",
+        message: "Concatenation of two string literals, combine them into one string",
         details: "Two adjacent string literals can be merged at write time.",
         location: span,
       ),

@@ -21,7 +21,7 @@ fn check_statement(statement: glance.Statement) -> List(rule.RuleError) {
           rule.error(
             message: "Variable name '"
               <> name
-              <> "' is too short — use a descriptive name",
+              <> "' is too short, use a descriptive name",
             details: "Single-character variable names hurt readability. Use descriptive names.",
             location: location,
           ),

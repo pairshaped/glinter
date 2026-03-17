@@ -19,7 +19,7 @@ fn check_function(
           rule.error(
             message: "Function '"
               <> function.name
-              <> "' uses String as error type — use a custom error type instead",
+              <> "' uses String as error type: use a custom error type instead",
             details: "Custom error types are pattern-matchable and self-documenting. String errors lose structure.",
             location: span,
           ),

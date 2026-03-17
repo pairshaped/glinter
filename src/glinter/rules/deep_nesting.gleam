@@ -42,7 +42,7 @@ fn on_enter(
           rule.error(
             message: "Nesting is "
               <> int.to_string(new_depth)
-              <> " levels deep — flatten with use callbacks or extract a helper function",
+              <> " levels deep, flatten with use callbacks or extract a helper function",
             details: "Deeply nested code is hard to read. For nested case-on-Result chains, flatten with use callbacks (use value <- require_or_redirect(result, url)). For complex logic, extract inner blocks into named helper functions.",
             location: span,
           ),

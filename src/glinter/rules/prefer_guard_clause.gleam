@@ -24,7 +24,7 @@ fn check_function(
         True -> [
           rule.error(
             message: "Consider using 'use <- bool.guard' instead of case True/False",
-            details: "Guard clauses reduce nesting and improve readability for boolean branches. Only suggested when the return value is a literal, variable, or constructor — function calls stay in case branches because bool.guard evaluates the return parameter eagerly.",
+            details: "Guard clauses reduce nesting and improve readability for boolean branches. Only suggested when the return value is a literal, variable, or constructor. Function calls stay in case branches because bool.guard evaluates the return parameter eagerly.",
             location: location,
           ),
         ]
@@ -59,8 +59,7 @@ fn is_simple(expr: glance.Expression) -> Bool {
     | glance.Float(..)
     | glance.String(..)
     | glance.Variable(..)
-    | glance.Tuple(..)
-    -> True
+    | glance.Tuple(..) -> True
     // Constructor calls like Ok(Nil), Error(err), Some(value)
     glance.Call(_, glance.Variable(_, name), _) -> starts_uppercase(name)
     _ -> False

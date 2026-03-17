@@ -35,7 +35,7 @@ fn check_pattern(pattern: glance.Pattern) -> List(rule.RuleError) {
       with_spread: _,
     ) -> [
       rule.error(
-        message: "Error value is discarded — propagate with result.try, use result.or for fallback chains, or log at boundaries",
+        message: "Error value is discarded: propagate with result.try, use result.or for fallback chains, or log at boundaries",
         details: "Discarding errors silently hides failures. Propagate with result.try or use. For fallback chains (try A, else try B), use result.or or result.map instead of nested case. At system boundaries, log the error before replacing it. If the error is Nil, match Error(Nil) instead of Error(_) to make that explicit.",
         location: location,
       ),

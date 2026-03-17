@@ -16,7 +16,7 @@ fn check_statement(statement: glance.Statement) -> List(rule.RuleError) {
       ..,
     ) -> [
       rule.error(
-        message: "Result of this expression is being discarded — handle the error or use an explicit name",
+        message: "Result of this expression is being discarded: handle the error or use an explicit name",
         details: "Discarding results with `let _ = ...` hides potential errors. Handle the Result or use a named discard like `let _response = ...`.",
         location: location,
       ),

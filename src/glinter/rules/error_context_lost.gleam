@@ -47,7 +47,7 @@ fn check_map_error_discard(
   case has_discard {
     True -> [
       rule.error(
-        message: "result.map_error discards the original error — consider wrapping it instead",
+        message: "result.map_error discards the original error: consider wrapping it instead",
         details: "Discarding the original error loses context for debugging and error handling.",
         location: location,
       ),

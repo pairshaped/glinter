@@ -35,7 +35,7 @@ fn evaluate(context: Context) -> List(rule.RuleError) {
       rule.error(
         message: "Module has a complexity of "
           <> int.to_string(context.total_branches)
-          <> " — consider splitting into smaller modules",
+          <> ", consider splitting into smaller modules",
         details: "High module complexity makes the codebase harder to navigate. Consider splitting into focused modules.",
         location: glance.Span(0, 0),
       ),

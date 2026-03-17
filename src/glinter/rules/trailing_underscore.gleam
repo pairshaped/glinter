@@ -17,7 +17,7 @@ fn check_function(
       rule.error(
         message: "Function '"
           <> function.name
-          <> "' has a trailing underscore — remove it",
+          <> "' has a trailing underscore, remove it",
         details: "Trailing underscores on function names are unnecessary in Gleam.",
         location: span,
       ),
