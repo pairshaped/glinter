@@ -265,24 +265,37 @@ pub fn detects_record_update_test() {
 
 // --- check_unused_exports (orchestration) tests ---
 
+fn parse(
+  path path: String,
+  module_path module_path: String,
+  source source: String,
+) -> #(String, String, glance.Module) {
+  let assert Ok(module) = glance.module(source)
+  #(path, module_path, module)
+}
+
 pub fn detects_unused_pub_function_test() {
   let src_files = [
-    #(
-      "src/myapp/users.gleam",
-      "myapp/users",
-      "pub fn create() { Nil }
+    parse(
+      path: "src/myapp/users.gleam",
+      module_path: "myapp/users",
+      source: "pub fn create() { Nil }
        pub fn unused_helper() { Nil }",
     ),
-    #(
-      "src/myapp/main.gleam",
-      "myapp/main",
-      "import myapp/users
+    parse(
+      path: "src/myapp/main.gleam",
+      module_path: "myapp/main",
+      source: "import myapp/users
        pub fn main() { users.create() }",
     ),
   ]
   let test_files = []
   let results =
-    unused_exports.check_unused_exports(src_files, test_files, rule.Warning)
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: test_files,
+      severity: rule.Warning,
+    )
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True =
@@ -293,33 +306,49 @@ pub fn detects_unused_pub_function_test() {
 
 pub fn all_exports_used_test() {
   let src_files = [
-    #("src/myapp/users.gleam", "myapp/users", "pub fn create() { Nil }"),
-    #(
-      "src/myapp/main.gleam",
-      "myapp/main",
-      "import myapp/users
+    parse(
+      path: "src/myapp/users.gleam",
+      module_path: "myapp/users",
+      source: "pub fn create() { Nil }",
+    ),
+    parse(
+      path: "src/myapp/main.gleam",
+      module_path: "myapp/main",
+      source: "import myapp/users
        pub fn main() { users.create() }",
     ),
   ]
   let test_files = []
   let results =
-    unused_exports.check_unused_exports(src_files, test_files, rule.Warning)
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: test_files,
+      severity: rule.Warning,
+    )
   let assert True = results == []
 }
 
 pub fn used_only_in_test_not_flagged_test() {
   let src_files = [
-    #("src/myapp/users.gleam", "myapp/users", "pub fn create() { Nil }"),
+    parse(
+      path: "src/myapp/users.gleam",
+      module_path: "myapp/users",
+      source: "pub fn create() { Nil }",
+    ),
   ]
   let test_files = [
-    #(
-      "test/users_test.gleam",
-      "users_test",
-      "import myapp/users
+    parse(
+      path: "test/users_test.gleam",
+      module_path: "users_test",
+      source: "import myapp/users
        pub fn create_test() { users.create() }",
     ),
   ]
   let results =
-    unused_exports.check_unused_exports(src_files, test_files, rule.Warning)
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: test_files,
+      severity: rule.Warning,
+    )
   let assert True = results == []
 }

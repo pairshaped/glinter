@@ -461,27 +461,10 @@ fn search_type(type_: Type, aliases: List(String), member_name: String) -> Bool 
 // --- Orchestration ---
 
 pub fn check_unused_exports(
-  src_files: List(#(String, String, String)),
-  test_files: List(#(String, String, String)),
-  severity: rule.Severity,
+  parsed_src parsed_src: List(#(String, String, glance.Module)),
+  parsed_test parsed_test: List(#(String, String, glance.Module)),
+  severity severity: rule.Severity,
 ) -> List(rule.LintResult) {
-  // Parse all files
-  let parsed_src =
-    list.filter_map(src_files, fn(f) {
-      let #(path, module_path, source) = f
-      case glance.module(source) {
-        Ok(module) -> Ok(#(path, module_path, module))
-        Error(_) -> Error(Nil)
-      }
-    })
-  let parsed_test =
-    list.filter_map(test_files, fn(f) {
-      let #(path, module_path, source) = f
-      case glance.module(source) {
-        Ok(module) -> Ok(#(path, module_path, module))
-        Error(_) -> Error(Nil)
-      }
-    })
   let all_consumers = list.append(parsed_src, parsed_test)
 
   // For each src file, collect pub definitions and check usage

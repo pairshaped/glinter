@@ -118,7 +118,8 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
 
   // Cross-module: unused exports detection (special-cased — needs file paths
   // and src/test distinction that the project rule API doesn't yet provide)
-  let unused_export_results = run_unused_exports(sources, project_prefix, cfg)
+  let unused_export_results =
+    run_unused_exports(parsed_files, project_prefix, cfg)
   let results = list.append(per_file_results, unused_export_results)
 
   // Cross-file: FFI usage detection (special-cased — scans .mjs files,
@@ -323,7 +324,7 @@ fn file_path_to_module_path(path: String) -> String {
 
 /// Run unused exports detection as a cross-module pass.
 fn run_unused_exports(
-  sources: List(#(String, String)),
+  parsed_files: List(#(String, String, glance.Module)),
   project_prefix: String,
   cfg: config.Config,
 ) -> List(rule.LintResult) {
@@ -338,31 +339,43 @@ fn run_unused_exports(
   case severity {
     Error(_) -> []
     Ok(sev) -> {
-      // Build src file tuples: #(display_path, module_path, source)
-      let src_files =
-        sources
-        |> list.map(fn(s) {
-          let #(file_path, source) = s
-          #(file_path, file_path_to_module_path(file_path), source)
+      // Build src file tuples with module paths from already-parsed files
+      let parsed_src =
+        parsed_files
+        |> list.map(fn(f) {
+          let #(file_path, _, module) = f
+          #(file_path, file_path_to_module_path(file_path), module)
         })
 
-      // Discover test files as additional consumers
+      // Discover and parse test files as additional consumers
       let test_dir = project_prefix <> "test/"
-      let test_files = case simplifile.is_directory(test_dir) {
+      let parsed_test = case simplifile.is_directory(test_dir) {
         Ok(True) ->
           discover_files([test_dir])
           |> list.filter_map(fn(abs_path) {
             let rel_path = strip_prefix(abs_path, project_prefix)
             case simplifile.read(abs_path) {
               Ok(source) ->
-                Ok(#(rel_path, file_path_to_module_path(rel_path), source))
+                case glance.module(source) {
+                  Ok(module) ->
+                    Ok(#(
+                      rel_path,
+                      file_path_to_module_path(rel_path),
+                      module,
+                    ))
+                  Error(_) -> Error(Nil)
+                }
               Error(_) -> Error(Nil)
             }
           })
         _ -> []
       }
 
-      unused_exports.check_unused_exports(src_files, test_files, sev)
+      unused_exports.check_unused_exports(
+        parsed_src: parsed_src,
+        parsed_test: parsed_test,
+        severity: sev,
+      )
       |> list.filter(fn(r) {
         !ignore.is_rule_ignored(r.file, "unused_exports", cfg.ignore)
       })
