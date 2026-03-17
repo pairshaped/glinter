@@ -1,5 +1,5 @@
 name = "glinter"
-version = "2.8.4"
+version = "3.0.0"
 description = "A linter for the Gleam programming language"
 licences = ["MIT"]
 repository = { type = "github", user = "pairshaped", repo = "glinter" }
@@ -41,6 +41,11 @@ unqualified_import = "warning"
 panic_without_message = "warning"
 string_inspect = "warning"
 duplicate_import = "warning"
+thrown_away_error = "warning"
+trailing_underscore = "warning"
+unnecessary_string_concatenation = "warning"
+error_context_lost = "warning"
+stringly_typed_error = "warning"
 ffi_usage = "off"
 
 # Ignore rules for specific file patterns
@@ -49,7 +54,6 @@ ffi_usage = "off"
 "src/glinter/rules/*.gleam" = ["label_possible"]
 # AST traversal code is inherently complex — suppress complexity warnings
 "src/glinter.gleam" = ["label_possible"]
-"src/glinter/walker.gleam" = ["deep_nesting", "function_complexity", "label_possible"]
 "src/glinter/rule.gleam" = ["deep_nesting", "function_complexity", "label_possible"]
 "src/glinter/analysis.gleam" = ["deep_nesting", "function_complexity"]
 "src/glinter/reporter.gleam" = ["label_possible"]

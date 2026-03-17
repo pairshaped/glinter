@@ -50,7 +50,7 @@ pub fn main() {
   let show_stats = show_stats || cfg.stats
 
   // Module rules (per-file AST analysis)
-  let v3_rules = [
+  let module_rules = [
     avoid_panic.rule(),
     avoid_todo.rule(),
     echo_rule.rule(),
@@ -122,7 +122,7 @@ pub fn main() {
   let parsed_files = list.reverse(parsed_files)
   let sources = list.reverse(sources)
 
-  let all_rules = apply_v3_config(v3_rules, cfg)
+  let all_rules = apply_config(module_rules, cfg)
   let per_file_results =
     runner.run(rules: all_rules, files: parsed_files, config: cfg)
 
@@ -234,7 +234,7 @@ fn load_config(path: String) -> config.Config {
   }
 }
 
-fn apply_v3_config(
+fn apply_config(
   rules: List(rule.Rule),
   cfg: config.Config,
 ) -> List(rule.Rule) {

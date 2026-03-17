@@ -1,6 +1,8 @@
-/// NOTE: Expression tree traversal here must stay in sync with walker.gleam,
-/// rules/deep_nesting.gleam, rules/missing_labels.gleam, and
-/// unused_exports.gleam when glance adds new expression variants.
+/// Count branching/control-flow nodes in an expression tree.
+/// Used by function_complexity and module_complexity rules.
+/// Expression traversal must stay in sync with rules/deep_nesting.gleam,
+/// rules/missing_labels.gleam, and unused_exports.gleam when glance adds
+/// new expression variants.
 import glance.{type Expression, type Statement}
 import gleam/list
 import gleam/option.{None, Some}
