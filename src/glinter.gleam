@@ -9,7 +9,7 @@ import glinter/config
 import glinter/ffi_usage
 import glinter/ignore
 import glinter/reporter.{Json, Text}
-import glinter/rule.{type V2Rule, LintResult, V2Rule}
+import glinter/rule.{type V2Rule, V2Rule}
 import glinter/rules/assert_ok_pattern
 import glinter/rules/avoid_panic
 import glinter/rules/avoid_todo
@@ -36,6 +36,7 @@ import glinter/rules/unnecessary_string_concatenation
 import glinter/rules/unnecessary_variable
 import glinter/rules/unqualified_import
 import glinter/rules/unwrap_used
+import glinter/runner
 import glinter/unused_exports
 import glinter/walker
 import simplifile
@@ -91,38 +92,50 @@ pub fn main() {
 
   // Discover files (absolute paths), then make relative for ignore matching
   // and cleaner output
-  let files =
+  let file_paths =
     discover_files(effective_paths)
     |> list.map(fn(f) { strip_prefix(f, project_prefix) })
     |> list.filter(fn(f) { !ignore.is_file_excluded(f, cfg.exclude) })
 
-  let file_outputs =
-    pmap(
-      fn(file_path) {
-        let read_path = project_prefix <> file_path
-        lint_file(read_path, file_path, rules, cfg)
-      },
-      files,
-    )
-
-  let #(per_file_results, sources) =
-    file_outputs
-    |> list.fold(#([], []), fn(acc, result) {
-      case result {
-        Ok(#(file_results, file_path, source)) -> #(
-          list.append(acc.0, file_results),
-          [#(file_path, source), ..acc.1],
-        )
-        Error(_) -> acc
+  // Read and parse files, collecting sources for reporter and cross-module passes
+  let #(parsed_files, sources) =
+    file_paths
+    |> list.fold(#([], []), fn(acc, file_path) {
+      let read_path = project_prefix <> file_path
+      case simplifile.read(read_path) {
+        Error(_) -> {
+          io.println_error("Error: Could not read " <> read_path)
+          acc
+        }
+        Ok(source) ->
+          case glance.module(source) {
+            Error(_) -> {
+              io.println_error("Error: Failed to parse " <> read_path)
+              acc
+            }
+            Ok(module) -> #([#(file_path, source, module), ..acc.0], [
+              #(file_path, source),
+              ..acc.1
+            ])
+          }
       }
     })
+  let parsed_files = list.reverse(parsed_files)
   let sources = list.reverse(sources)
 
-  // Cross-module: unused exports detection
+  // Convert V2 rules to new Rule type and run through the runner
+  let new_rules =
+    list.map(rules, fn(r) {
+      rule.from_v2_rule(v2: r, module_data_builder: build_module_data)
+    })
+  let per_file_results =
+    runner.run(rules: new_rules, files: parsed_files, config: cfg)
+
+  // Cross-module: unused exports detection (special-cased until ported)
   let unused_export_results = run_unused_exports(sources, project_prefix, cfg)
   let results = list.append(per_file_results, unused_export_results)
 
-  // Cross-file: FFI usage detection (scans .mjs/.js files)
+  // Cross-file: FFI usage detection (special-cased until ported)
   let ffi_results = run_ffi_usage(effective_paths, project_prefix, cfg)
   let results = list.append(results, ffi_results)
 
@@ -221,57 +234,6 @@ fn load_config(path: String) -> config.Config {
         }
         Ok(cfg) -> cfg
       }
-  }
-}
-
-/// Lint a file. Reads from read_path (absolute), reports as display_path (relative).
-fn lint_file(
-  read_path: String,
-  display_path: String,
-  rules: List(V2Rule),
-  cfg: config.Config,
-) -> Result(#(List(rule.LintResult), String, String), Nil) {
-  case simplifile.read(read_path) {
-    Error(_) -> {
-      io.println_error("Error: Could not read " <> read_path)
-      Error(Nil)
-    }
-    Ok(source) -> {
-      let active_rules =
-        rules
-        |> list.filter(fn(r) {
-          !ignore.is_rule_ignored(display_path, r.name, cfg.ignore)
-        })
-      case glance.module(source) {
-        Error(_) -> {
-          io.println_error("Error: Failed to parse " <> read_path)
-          Error(Nil)
-        }
-        Ok(module) -> {
-          let needs_collect = list.any(active_rules, fn(r) { r.needs_collect })
-          let data = case needs_collect {
-            True -> walker.collect(module)
-            False -> walker.module_only(module)
-          }
-          let file_results =
-            active_rules
-            |> list.flat_map(fn(r) {
-              r.check(data, source)
-              |> list.map(fn(result) {
-                LintResult(
-                  rule: result.rule,
-                  severity: r.default_severity,
-                  file: display_path,
-                  location: result.location,
-                  message: result.message,
-                  details: "",
-                )
-              })
-            })
-          Ok(#(file_results, display_path, source))
-        }
-      }
-    }
   }
 }
 
@@ -417,11 +379,20 @@ fn run_ffi_usage(
   }
 }
 
+/// Build ModuleData from a parsed module, using walker when needs_collect is True.
+/// Passed to rule.from_v2_rule to avoid an import cycle between rule and walker.
+fn build_module_data(
+  module: glance.Module,
+  needs_collect: Bool,
+) -> rule.ModuleData {
+  case needs_collect {
+    True -> walker.collect(module)
+    False -> walker.module_only(module)
+  }
+}
+
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
 
 @external(erlang, "glinter_ffi", "monotonic_time_ms")
 fn monotonic_time_ms() -> Int
-
-@external(erlang, "glinter_ffi", "pmap")
-fn pmap(func: fn(a) -> b, items: List(a)) -> List(b)

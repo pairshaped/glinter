@@ -850,3 +850,26 @@ pub type V2Rule {
     check: fn(ModuleData, String) -> List(RuleResult),
   )
 }
+
+/// Convert a V2Rule to the new Rule type for runner compatibility.
+/// Accepts a module_data_builder to avoid an import cycle with walker.
+pub fn from_v2_rule(
+  v2 v2: V2Rule,
+  module_data_builder module_data_builder: fn(glance.Module, Bool) -> ModuleData,
+) -> Rule {
+  ModuleRule(
+    name: v2.name,
+    default_severity: v2.default_severity,
+    run: fn(module, source) {
+      let data = module_data_builder(module, v2.needs_collect)
+      v2.check(data, source)
+      |> list.map(fn(result) {
+        RuleError(
+          message: result.message,
+          details: "",
+          location: result.location,
+        )
+      })
+    },
+  )
+}
