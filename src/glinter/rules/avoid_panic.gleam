@@ -4,13 +4,16 @@ import gleam/option.{Some}
 import glinter/rule
 
 type Context {
-  Context(in_external_type_match: Bool)
+  /// Depth counter for nested external-type case matches.
+  /// 0 = not inside any external-type match.
+  /// >0 = inside that many nested case expressions with external constructors.
+  Context(external_match_depth: Int)
 }
 
 pub fn rule() -> rule.Rule {
   rule.new_with_context(
     name: "avoid_panic",
-    initial: Context(in_external_type_match: False),
+    initial: Context(external_match_depth: 0),
   )
   |> rule.with_default_severity(severity: rule.Error)
   |> rule.with_expression_enter_visitor(visitor: on_enter)
@@ -24,9 +27,6 @@ fn on_enter(
   context: Context,
 ) -> #(List(rule.RuleError), Context) {
   case expression {
-    // When entering a case expression, check if any clause pattern uses
-    // a qualified constructor (module.Constructor) — this indicates matching
-    // on an external type whose variants we don't control.
     glance.Case(_, _, clauses) -> {
       let has_external_patterns =
         list.any(clauses, fn(clause) {
@@ -34,12 +34,16 @@ fn on_enter(
             list.any(pattern_group, has_qualified_constructor)
           })
         })
-      #([], Context(in_external_type_match: has_external_patterns))
+      let new_depth = case has_external_patterns {
+        True -> context.external_match_depth + 1
+        False -> context.external_match_depth
+      }
+      #([], Context(external_match_depth: new_depth))
     }
 
     // Panic inside an external type match is allowed — you're forced
     // to handle variants from a type you don't control.
-    glance.Panic(..) if context.in_external_type_match -> #([], context)
+    glance.Panic(..) if context.external_match_depth > 0 -> #([], context)
 
     glance.Panic(..) -> #(
       [
@@ -62,7 +66,19 @@ fn on_exit(
   context: Context,
 ) -> #(List(rule.RuleError), Context) {
   case expression {
-    glance.Case(..) -> #([], Context(in_external_type_match: False))
+    glance.Case(_, _, clauses) -> {
+      let has_external_patterns =
+        list.any(clauses, fn(clause) {
+          list.any(clause.patterns, fn(pattern_group) {
+            list.any(pattern_group, has_qualified_constructor)
+          })
+        })
+      let new_depth = case has_external_patterns {
+        True -> context.external_match_depth - 1
+        False -> context.external_match_depth
+      }
+      #([], Context(external_match_depth: new_depth))
+    }
     _ -> #([], context)
   }
 }

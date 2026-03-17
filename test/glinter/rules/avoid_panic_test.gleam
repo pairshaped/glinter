@@ -51,6 +51,27 @@ pub fn convert(value: lib.Param) -> Int {
   let assert True = results == []
 }
 
+pub fn allows_panic_after_nested_case_in_external_match_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "import external/lib
+pub fn convert(value: lib.Param) -> Int {
+  case value {
+    lib.Supported(v) -> {
+      case v > 0 {
+        True -> v
+        False -> 0
+      }
+      panic as \"unreachable after inner case\"
+    }
+    lib.Unsupported(_) -> panic as \"not supported\"
+  }
+}",
+      avoid_panic.rule(),
+    )
+  let assert True = results == []
+}
+
 pub fn still_flags_panic_in_own_module_match_test() {
   let results =
     test_helpers.lint_string_rule(
