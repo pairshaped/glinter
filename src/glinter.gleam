@@ -41,7 +41,24 @@ import glinter/runner
 import glinter/unused_exports
 import simplifile
 
-pub fn main() {
+/// Run glinter with extra rules from external packages.
+/// Use this from a review.gleam file to add project-specific rules:
+///
+/// ```gleam
+/// import glinter
+/// import my_project/rules
+///
+/// pub fn main() {
+///   glinter.run(extra_rules: [
+///     rules.no_raw_sql(),
+///     rules.require_org_id(),
+///   ])
+/// }
+/// ```
+///
+/// Extra rules are configured the same way as built-in rules
+/// (on/off/severity in gleam.toml, file-level ignores).
+pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   let start_time = monotonic_time_ms()
   let args = argv.load().arguments
   let #(format, project_prefix, show_stats, paths) = parse_args(args)
@@ -50,36 +67,7 @@ pub fn main() {
   let cfg = load_config(config_path)
   let show_stats = show_stats || cfg.stats
 
-  // Module rules (per-file AST analysis)
-  let module_rules = [
-    avoid_panic.rule(),
-    avoid_todo.rule(),
-    echo_rule.rule(),
-    assert_ok_pattern.rule(),
-    redundant_case.rule(),
-    unwrap_used.rule(),
-    panic_without_message.rule(),
-    string_inspect.rule(),
-    todo_without_message.rule(),
-    unnecessary_string_concatenation.rule(),
-    error_context_lost.rule(),
-    thrown_away_error.rule(),
-    missing_type_annotation.rule(),
-    function_complexity.rule(),
-    label_possible.rule(),
-    trailing_underscore.rule(),
-    stringly_typed_error.rule(),
-    prefer_guard_clause.rule(),
-    duplicate_import.rule(),
-    unqualified_import.rule(),
-    deep_nesting.rule(),
-    module_complexity.rule(),
-    missing_labels.rule(),
-    short_variable_name.rule(),
-    unnecessary_variable.rule(),
-    discarded_result.rule(),
-    division_by_zero.rule(),
-  ]
+  let module_rules = list.append(built_in_rules(), extra_rules)
 
   // Resolve paths: CLI args > config include > default src/
   let effective_paths = case paths {
@@ -157,6 +145,42 @@ pub fn main() {
     True -> halt(1)
     False -> halt(0)
   }
+}
+
+pub fn main() {
+  run(extra_rules: [])
+}
+
+fn built_in_rules() -> List(rule.Rule) {
+  [
+    avoid_panic.rule(),
+    avoid_todo.rule(),
+    echo_rule.rule(),
+    assert_ok_pattern.rule(),
+    redundant_case.rule(),
+    unwrap_used.rule(),
+    panic_without_message.rule(),
+    string_inspect.rule(),
+    todo_without_message.rule(),
+    unnecessary_string_concatenation.rule(),
+    error_context_lost.rule(),
+    thrown_away_error.rule(),
+    missing_type_annotation.rule(),
+    function_complexity.rule(),
+    label_possible.rule(),
+    trailing_underscore.rule(),
+    stringly_typed_error.rule(),
+    prefer_guard_clause.rule(),
+    duplicate_import.rule(),
+    unqualified_import.rule(),
+    deep_nesting.rule(),
+    module_complexity.rule(),
+    missing_labels.rule(),
+    short_variable_name.rule(),
+    unnecessary_variable.rule(),
+    discarded_result.rule(),
+    division_by_zero.rule(),
+  ]
 }
 
 fn count_lines(sources: List(#(String, String))) -> Int {
@@ -243,8 +267,12 @@ fn apply_config(
   rules
   |> list.filter(fn(r) {
     case dict.get(cfg.rules, rule.name(r)) {
+      // Explicitly set to off in config
       Ok(None) -> False
-      _ -> True
+      // Explicitly enabled in config
+      Ok(_) -> True
+      // Not in config: use the rule's default severity
+      Error(_) -> rule.default_severity(r) != rule.Off
     }
   })
 }
