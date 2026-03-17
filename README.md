@@ -54,60 +54,71 @@ done
 
 ## Rules
 
-### Code Quality
-
-- **avoid_panic** (error): flags uses of `panic`
-- **avoid_todo** (error): flags uses of `todo`
-- **echo** (warning): flags uses of `echo` (debug output)
-- **assert_ok_pattern** (warning): flags `let assert` assignments
-- **unwrap_used** (warning): flags `result.unwrap`, `option.unwrap`, and lazy variants
-- **todo_without_message** (warning): flags `todo` without a descriptive message
-- **panic_without_message** (warning): flags `panic` without a descriptive message
-- **string_inspect** (warning): flags `string.inspect` usage (debug output)
-
 ### Error Handling
 
-- **error_context_lost** (warning): flags `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`. Note: `result.replace_error` is not flagged — it's the correct tool for upgrading `Nil` errors into domain errors.
-- **stringly_typed_error** (warning): flags functions with `Result(x, String)` return types — use a custom error type instead
-- **thrown_away_error** (warning): flags `Error(_)` patterns in case expressions that discard the error value. Can be noisy in codebases with many fallback patterns — disable with `thrown_away_error = "off"` in config.
+These rules enforce explicit error handling. Gleam's `Result` type exists so errors are handled at every level, not silently discarded.
 
-### Type Annotations
+- **assert_ok_pattern** (warning): flags `let assert` outside of `main()`. Functions should return `Result` and let the caller decide how to handle errors. Only `main()` — the application entry point — should crash on failure, because that's startup code where crash-on-failure is the correct behavior. This pushes error handling to the right level and prevents request handlers or library code from crashing the process.
 
-- **missing_type_annotation** (warning): flags functions missing return type annotations or with untyped parameters
+- **error_context_lost** (warning): flags `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`. The original error carries context about what went wrong. Note: `result.replace_error` is not flagged — it's the correct tool for upgrading `Nil` errors into domain errors.
+
+- **thrown_away_error** (warning): flags `Error(_)` patterns in case expressions that discard the error value. Propagate errors with `result.try`, use `result.or` for fallback chains, or log at system boundaries. If the error is `Nil`, match `Error(Nil)` explicitly.
+
+- **stringly_typed_error** (warning): flags functions with `Result(x, String)` return types. String errors can't be pattern matched by callers — use a custom error type instead.
+
+- **discarded_result** (warning): flags `let _ = expr` where the expression likely returns a Result. Silently discarding Results hides failures.
+
+- **unwrap_used** (off): flags `result.unwrap`, `option.unwrap`, and lazy variants. Off by default because `unwrap` with an intentional default (optional config, end of fallback chain) is legitimate. Enable for stricter codebases. The planned error-flow tracking rule will catch the dangerous cases (silently discarding meaningful errors) more precisely.
+
+### Code Quality
+
+These rules catch debug artifacts and patterns that shouldn't ship to production.
+
+- **avoid_panic** (error): flags uses of `panic`. Panics crash the process. Return `Result` instead, and let `main()` decide what's fatal.
+- **avoid_todo** (error): flags uses of `todo`. Unfinished code shouldn't be committed.
+- **echo** (warning): flags uses of `echo`. Debug output left in production code.
+- **panic_without_message** (warning): flags `panic` without a descriptive message. If you must panic, explain why.
+- **todo_without_message** (warning): flags `todo` without a descriptive message. Explain what's missing.
+- **string_inspect** (warning): flags `string.inspect` usage. Typically debug output — use proper serialization instead.
 
 ### Style
 
-- **discarded_result** (warning): flags `let _ = expr` (discarded results)
-- **short_variable_name** (warning): flags single-character variable names in let bindings
-- **unnecessary_variable** (warning): flags `let x = expr; x` (assigned then immediately returned)
-- **redundant_case** (warning): flags `case` expressions with a single branch and no guard
-- **prefer_guard_clause** (warning): flags `case bool { True -> ... False -> ... }` patterns that could use `bool.guard`
-- **unnecessary_string_concatenation** (warning): flags concatenation with an empty string (`x <> ""`) and concatenation of two string literals (`"foo" <> "bar"`)
-- **trailing_underscore** (warning): flags function names ending with `_`
+These rules enforce consistency and catch patterns that make code harder to read.
+
+- **short_variable_name** (warning): flags single-character variable names in let bindings. Use descriptive names.
+- **unnecessary_variable** (warning): flags `let x = expr; x` — assigned then immediately returned. Just return the expression directly.
+- **redundant_case** (warning): flags `case` expressions with a single branch and no guard. Use `let` instead.
+- **prefer_guard_clause** (warning): flags `case bool { True -> ... False -> ... }` patterns that could use `bool.guard`.
+- **unnecessary_string_concatenation** (warning): flags concatenation with an empty string (`x <> ""`) and concatenation of two string literals (`"foo" <> "bar"`).
+- **trailing_underscore** (warning): flags function names ending with `_`. Gleam uses trailing underscore for reserved word conflicts (`type_`), not as a naming convention.
+
+### Type Annotations
+
+- **missing_type_annotation** (warning): flags functions missing return type annotations or with untyped parameters. Explicit types make code self-documenting and catch errors earlier.
 
 ### Complexity
 
-- **deep_nesting** (warning): flags nesting deeper than 5 levels
-- **function_complexity** (off): flags functions with more than 10 branching nodes. Off by default — branch count doesn't correlate with readability (routers, state machines, parsers are naturally branchy). Enable with `function_complexity = "warning"` in config.
-- **module_complexity** (off): flags modules with more than 100 total branching nodes. Off by default — [large cohesive modules are idiomatic Gleam](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Fragmented-modules). Enable with `module_complexity = "warning"` in config.
+- **deep_nesting** (warning): flags nesting deeper than 5 levels. Deeply nested code is hard to follow — extract helper functions.
+- **function_complexity** (off): flags functions with more than 10 branching nodes. Off by default — branch count doesn't correlate with readability (routers, state machines, parsers are naturally branchy). Enable with `function_complexity = "warning"`.
+- **module_complexity** (off): flags modules with more than 100 total branching nodes. Off by default — [large cohesive modules are idiomatic Gleam](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Fragmented-modules). Enable with `module_complexity = "warning"`.
 
 ### Labels
 
-- **label_possible** (warning): flags unlabeled parameters in functions with 2+ parameters
-- **missing_labels** (warning): flags calls to same-module functions that omit defined labels
+- **label_possible** (warning): flags unlabeled parameters in functions with 2+ parameters. Labels make call sites self-documenting and have zero runtime cost in Gleam.
+- **missing_labels** (warning): flags calls to same-module functions that omit defined labels. If the function defines labels, use them.
 
 ### Imports
 
 - **unqualified_import** (warning): flags unqualified function/constant imports (e.g. `import mod.{func}`). Gleam convention is to use qualified access (`mod.func`). Constructor imports (`Some`, `None`, `Ok`, etc.) and type imports are not flagged.
-- **duplicate_import** (warning): flags importing the same module more than once in a file
+- **duplicate_import** (warning): flags importing the same module more than once in a file.
 
 ### Cross-Module
 
-- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded.
+- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded. Note: Gleam has FFI boundaries — functions called from Erlang/JS code outside the project may be flagged as unused.
 
 ### FFI
 
-- **ffi_usage** (off): flags use of Gleam's private JS data API in `.mjs` files — numeric property access (`value[0]`, `tuple.0`), internal constructor checks (`$constructor`), runtime imports (`gleam.mjs`), and internal helpers (`makeError`, `isEqual`, `CustomType`, etc.). These representations can change between compiler versions. Off by default — enable if your project includes JS FFI. Scans `.mjs` files in configured source directories only. Community feedback and PRs welcome to improve pattern detection.
+- **ffi_usage** (off): flags use of Gleam's private JS data API in `.mjs` files — numeric property access (`value[0]`, `tuple.0`), internal constructor checks (`$constructor`), runtime imports (`gleam.mjs`), and internal helpers (`makeError`, `isEqual`, `CustomType`, etc.). These representations can change between compiler versions. Off by default — enable if your project includes JS FFI.
 
 ## Configuration
 
