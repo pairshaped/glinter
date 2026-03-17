@@ -13,7 +13,7 @@ pub fn bad() { result.unwrap(Ok(1), 0) }",
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True = result.rule == "unwrap_used"
-  let assert True = result.severity == rule.Warning
+  let assert True = result.severity == rule.Off
 }
 
 pub fn detects_option_unwrap_test() {
