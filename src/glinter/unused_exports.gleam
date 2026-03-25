@@ -458,6 +458,73 @@ fn search_type(type_: Type, aliases: List(String), member_name: String) -> Bool 
   }
 }
 
+// --- Required-by-public-interface check ---
+
+/// A pub type that appears in the signature of a pub function or as a field
+/// in another pub type in the same module MUST be public — flagging it as
+/// "unused" is a false positive.
+fn is_type_required_by_pub_interface(
+  module: Module,
+  type_name: String,
+) -> Bool {
+  // Check pub function signatures
+  list.any(module.functions, fn(def) {
+    let Definition(_, func) = def
+    case func.publicity {
+      Public ->
+        {
+          case func.return {
+            Some(t) -> type_mentions(t, type_name)
+            None -> False
+          }
+        }
+        || list.any(func.parameters, fn(param) {
+          case param.type_ {
+            Some(t) -> type_mentions(t, type_name)
+            None -> False
+          }
+        })
+      _ -> False
+    }
+  })
+  // Check pub custom type variant fields
+  || list.any(module.custom_types, fn(def) {
+    let Definition(_, custom) = def
+    case custom.publicity, custom.name == type_name {
+      // Don't check self-references, only other pub types
+      Public, False ->
+        list.any(custom.variants, fn(variant) {
+          list.any(variant.fields, fn(field) {
+            case field {
+              glance.LabelledVariantField(item: t, ..) ->
+                type_mentions(t, type_name)
+              glance.UnlabelledVariantField(item: t) ->
+                type_mentions(t, type_name)
+            }
+          })
+        })
+      _, _ -> False
+    }
+  })
+}
+
+/// Check whether a type AST mentions a given type name (unqualified).
+fn type_mentions(type_: Type, name: String) -> Bool {
+  case type_ {
+    glance.NamedType(_, type_name, None, parameters) ->
+      type_name == name
+      || list.any(parameters, fn(p) { type_mentions(p, name) })
+    glance.NamedType(_, _, Some(_), parameters) ->
+      list.any(parameters, fn(p) { type_mentions(p, name) })
+    glance.TupleType(_, elements) ->
+      list.any(elements, fn(t) { type_mentions(t, name) })
+    glance.FunctionType(_, parameters, return) ->
+      list.any(parameters, fn(t) { type_mentions(t, name) })
+      || type_mentions(return, name)
+    glance.VariableType(_, _) | glance.HoleType(_, _) -> False
+  }
+}
+
 // --- Orchestration ---
 
 pub fn check_unused_exports(
@@ -476,8 +543,16 @@ pub fn check_unused_exports(
 
     pub_defs
     |> list.filter_map(fn(pub_def) {
+      // A pub type required by a pub function's signature in the same
+      // module must stay public — skip it.
+      let is_required_by_interface = case pub_def.kind {
+        PubCustomType | PubTypeAlias ->
+          is_type_required_by_pub_interface(module, pub_def.name)
+        PubFunction | PubConstant -> False
+      }
       let is_used =
-        list.any(other_files, fn(consumer) {
+        is_required_by_interface
+        || list.any(other_files, fn(consumer) {
           let #(_, _, consumer_module) = consumer
           is_member_used_in(
             consumer_module,
