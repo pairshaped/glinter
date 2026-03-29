@@ -15,6 +15,7 @@ pub type Config {
     include: List(String),
     exclude: List(String),
     stats: Bool,
+    warnings_as_errors: Bool,
   )
 }
 
@@ -25,6 +26,7 @@ pub fn default() -> Config {
     include: [],
     exclude: [],
     stats: False,
+    warnings_as_errors: False,
   )
 }
 
@@ -37,12 +39,14 @@ pub fn parse(toml_string: String) -> Result(Config, String) {
       let include = parse_string_array(parsed, "include")
       let exclude = parse_string_array(parsed, "exclude")
       let stats = parse_stats(parsed)
+      let warnings_as_errors = parse_warnings_as_errors(parsed)
       Ok(Config(
         rules: rules,
         ignore: ignore,
         include: include,
         exclude: exclude,
         stats: stats,
+        warnings_as_errors: warnings_as_errors,
       ))
     }
   }
@@ -95,6 +99,13 @@ fn parse_string_array(
           _ -> Error(Nil)
         }
       })
+  }
+}
+
+fn parse_warnings_as_errors(parsed: Dict(String, tom.Toml)) -> Bool {
+  case tom.get_bool(parsed, ["tools", "glinter", "warnings_as_errors"]) {
+    Ok(value) -> value
+    Error(_) -> False
   }
 }
 

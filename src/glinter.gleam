@@ -127,6 +127,18 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   let ffi_results = run_ffi_usage(effective_paths, project_prefix, cfg)
   let results = list.append(results, ffi_results)
 
+  // Promote warnings to errors if configured
+  let results = case cfg.warnings_as_errors {
+    True ->
+      list.map(results, fn(r) {
+        case r.severity {
+          rule.Warning -> rule.LintResult(..r, severity: rule.Error)
+          _ -> r
+        }
+      })
+    False -> results
+  }
+
   let elapsed_ms = monotonic_time_ms() - start_time
   let stats =
     reporter.Stats(
@@ -141,8 +153,9 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   }
   io.println(output)
 
-  let has_issues = !list.is_empty(results)
-  case has_issues {
+  let has_errors =
+    list.any(results, fn(r) { r.severity == rule.Error })
+  case has_errors {
     True -> halt(1)
     False -> halt(0)
   }

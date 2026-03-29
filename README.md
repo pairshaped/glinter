@@ -27,7 +27,7 @@ gleam run -m glinter --stats
 gleam run -m glinter --project /path/to/my/project
 ```
 
-The exit code is `1` if any issues are found, `0` otherwise.
+The exit code is `1` if any errors are found, `0` otherwise (warnings alone don't fail the run).
 
 ### Multi-Package Projects
 
@@ -129,6 +129,7 @@ Configuration lives in your project's `gleam.toml` under the `[tools.glinter]` k
 ```toml
 [tools.glinter]
 stats = true  # show file count, line count, and timing after each run
+warnings_as_errors = true  # promote all warnings to errors (exit 1 on any issue)
 include = ["src/", "test/"]  # directories to lint (default: ["src/"])
 exclude = ["src/server/sql.gleam"]  # skip generated files entirely
 
