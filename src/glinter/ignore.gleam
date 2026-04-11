@@ -20,7 +20,16 @@ pub fn is_rule_ignored(
 }
 
 fn glob_matches(path: String, pattern: String) -> Bool {
-  do_glob_match(string.split(path, "/"), string.split(pattern, "/"))
+  // A pattern ending in "/" is shorthand for "/**" — match this
+  // directory prefix and everything under it. Without this rewrite,
+  // string.split("foo/bar/", "/") yields ["foo", "bar", ""] and the
+  // trailing empty segment never matches a real path segment, making
+  // directory-prefix patterns a silent no-op.
+  let normalized_pattern = case string.ends_with(pattern, "/") {
+    True -> pattern <> "**"
+    False -> pattern
+  }
+  do_glob_match(string.split(path, "/"), string.split(normalized_pattern, "/"))
 }
 
 fn do_glob_match(path_parts: List(String), pattern_parts: List(String)) -> Bool {
