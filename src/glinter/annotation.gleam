@@ -48,14 +48,23 @@ fn parse_lines(
   }
 }
 
-/// Extract rule names from a line containing // nolint:
+/// Extract rule names from a line containing // nolint: or /// nolint:
 fn extract_nolint(line: String) -> Result(List(String), Nil) {
-  case string.split(line, "// nolint:") {
-    [_, after_prefix, ..] -> {
+  // Try /// nolint: first (doc comment), then // nolint: (regular comment)
+  let after_prefix = case string.split(line, "/// nolint:") {
+    [_, after, ..] -> Ok(after)
+    _ ->
+      case string.split(line, "// nolint:") {
+        [_, after, ..] -> Ok(after)
+        _ -> Error(Nil)
+      }
+  }
+  case after_prefix {
+    Ok(after) -> {
       // Strip reason (everything after --)
-      let rules_part = case string.split(after_prefix, "--") {
+      let rules_part = case string.split(after, "--") {
         [before_reason, ..] -> before_reason
-        _ -> after_prefix
+        _ -> after
       }
       let rules =
         rules_part
@@ -67,7 +76,7 @@ fn extract_nolint(line: String) -> Result(List(String), Nil) {
         _ -> Ok(rules)
       }
     }
-    _ -> Error(Nil)
+    Error(_) -> Error(Nil)
   }
 }
 
@@ -77,9 +86,14 @@ fn determine_scope(
   remaining_lines: List(String),
   current_line_num: Int,
 ) -> #(Scope, Int) {
-  let before_nolint = case string.split(current_line, "// nolint:") {
-    [prefix, ..] -> string.trim(prefix)
-    _ -> ""
+  // Try /// nolint: first, then // nolint:
+  let before_nolint = case string.split(current_line, "/// nolint:") {
+    [prefix, _, ..] -> string.trim(prefix)
+    _ ->
+      case string.split(current_line, "// nolint:") {
+        [prefix, _, ..] -> string.trim(prefix)
+        _ -> ""
+      }
   }
   case before_nolint {
     "" -> classify_next_line(remaining_lines, current_line_num + 1)
@@ -111,9 +125,14 @@ fn classify_next_line(
                 // Skip attribute lines and keep looking
                 True -> classify_next_line(rest, next_line_num + 1)
                 False ->
-                  case string.starts_with(trimmed, "//") {
-                    True -> #(Stale, next_line_num - 1)
-                    False -> #(LineScope, next_line_num)
+                  case string.starts_with(trimmed, "///") {
+                    // Skip doc comment lines and keep looking
+                    True -> classify_next_line(rest, next_line_num + 1)
+                    False ->
+                      case string.starts_with(trimmed, "//") {
+                        True -> #(Stale, next_line_num - 1)
+                        False -> #(LineScope, next_line_num)
+                      }
                   }
               }
           }

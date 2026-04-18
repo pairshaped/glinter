@@ -154,3 +154,49 @@ pub fn no_annotations_returns_empty_test() {
   let results = annotation.parse("pub fn ok() { 1 }")
   let assert True = results == []
 }
+
+pub fn parses_doc_comment_nolint_test() {
+  let results =
+    annotation.parse(
+      "/// nolint: stringly_typed_error -- wraps OTP catch\npub fn try_call() { 1 }",
+    )
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.rules == ["stringly_typed_error"]
+  let assert True = a.scope == FunctionScope
+  let assert True = a.target_line == 2
+}
+
+pub fn doc_comment_nolint_with_other_doc_comments_test() {
+  let results =
+    annotation.parse(
+      "/// Run the given function, catching any panic.\n/// nolint: stringly_typed_error -- wraps OTP catch\npub fn try_call() { 1 }",
+    )
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.rules == ["stringly_typed_error"]
+  let assert True = a.scope == FunctionScope
+  let assert True = a.target_line == 3
+}
+
+pub fn doc_comment_nolint_skips_following_doc_comments_test() {
+  let results =
+    annotation.parse(
+      "/// nolint: avoid_panic\n/// Some documentation.\npub fn my_fn() { 1 }",
+    )
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.scope == FunctionScope
+  let assert True = a.target_line == 3
+}
+
+pub fn doc_comment_nolint_with_attributes_test() {
+  let results =
+    annotation.parse(
+      "/// nolint: avoid_panic\n/// Docs here.\n@external(erlang, \"mod\", \"fn\")\npub fn my_ffi() { panic }",
+    )
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.scope == FunctionScope
+  let assert True = a.target_line == 4
+}
