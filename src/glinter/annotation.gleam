@@ -8,7 +8,12 @@ pub type Scope {
 }
 
 pub type Annotation {
-  Annotation(rules: List(String), target_line: Int, scope: Scope)
+  Annotation(
+    rules: List(String),
+    comment_line: Int,
+    target_line: Int,
+    scope: Scope,
+  )
 }
 
 /// Parse source text for // nolint: comments and return annotations.
@@ -28,7 +33,13 @@ fn parse_lines(
       case extract_nolint(line) {
         Ok(rules) -> {
           let #(scope, target_line) = determine_scope(line, rest, line_num)
-          let annotation = Annotation(rules: rules, target_line: target_line, scope: scope)
+          let annotation =
+            Annotation(
+              rules: rules,
+              comment_line: line_num,
+              target_line: target_line,
+              scope: scope,
+            )
           parse_lines(rest, line_num + 1, [annotation, ..acc])
         }
         Error(_) -> parse_lines(rest, line_num + 1, acc)
@@ -71,29 +82,42 @@ fn determine_scope(
     _ -> ""
   }
   case before_nolint {
-    "" -> {
-      case remaining_lines {
-        [] -> #(Stale, current_line_num)
-        [next_line, ..] -> {
-          let trimmed = string.trim(next_line)
-          case trimmed {
-            "" -> #(Stale, current_line_num)
-            _ ->
-              case
-                string.starts_with(trimmed, "fn ")
-                || string.starts_with(trimmed, "pub fn ")
-              {
-                True -> #(FunctionScope, current_line_num + 1)
+    "" -> classify_next_line(remaining_lines, current_line_num + 1)
+    _ -> #(LineScope, current_line_num)
+  }
+}
+
+/// Look at the next non-attribute line to determine scope.
+/// Skips @attribute lines (e.g. @external, @deprecated) to find the fn.
+/// next_line_num is the line number of the first line in `lines`.
+fn classify_next_line(
+  lines: List(String),
+  next_line_num: Int,
+) -> #(Scope, Int) {
+  case lines {
+    [] -> #(Stale, next_line_num - 1)
+    [next_line, ..rest] -> {
+      let trimmed = string.trim(next_line)
+      case trimmed {
+        "" -> #(Stale, next_line_num - 1)
+        _ ->
+          case
+            string.starts_with(trimmed, "fn ")
+            || string.starts_with(trimmed, "pub fn ")
+          {
+            True -> #(FunctionScope, next_line_num)
+            False ->
+              case string.starts_with(trimmed, "@") {
+                // Skip attribute lines and keep looking
+                True -> classify_next_line(rest, next_line_num + 1)
                 False ->
                   case string.starts_with(trimmed, "//") {
-                    True -> #(Stale, current_line_num)
-                    False -> #(LineScope, current_line_num + 1)
+                    True -> #(Stale, next_line_num - 1)
+                    False -> #(LineScope, next_line_num)
                   }
               }
           }
-        }
       }
     }
-    _ -> #(LineScope, current_line_num)
   }
 }

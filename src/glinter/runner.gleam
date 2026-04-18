@@ -1,5 +1,5 @@
 import glance
-import gleam/int
+import gleam/dict
 import gleam/list
 import gleam/string
 import glinter/annotation
@@ -54,7 +54,7 @@ fn run_module_rules(
           })
         })
 
-      apply_annotations(results, source_text, module, display_path)
+      apply_annotations(results, source_text, module, display_path, config.ignore)
     },
     items: files,
   )
@@ -134,6 +134,7 @@ fn apply_annotations(
   source_text: String,
   module: glance.Module,
   file: String,
+  ignore_config: dict.Dict(String, List(String)),
 ) -> List(LintResult) {
   let annotations = annotation.parse(source_text)
 
@@ -162,22 +163,24 @@ fn apply_annotations(
 
   let kept_results = list.reverse(kept_results)
 
-  // Emit nolint_unused warnings for stale annotations and unused non-stale annotations
-  let unused_warnings =
+  // Emit nolint_unused warnings (unless nolint_unused is ignored for this file)
+  let nolint_ignored =
+    ignore.is_rule_ignored(file, "nolint_unused", ignore_config)
+  let unused_warnings = case nolint_ignored {
+    True -> []
+    False ->
     annotations
     |> list.index_map(fn(ann, idx) {
       case ann.scope {
         annotation.Stale -> {
-          let annotation_line = ann.target_line
+          let offset = source.line_to_byte_offset(source_text, ann.comment_line)
           [
             LintResult(
               rule: "nolint_unused",
               severity: rule.Warning,
               file: file,
-              location: glance.Span(start: 0, end: 0),
-              message: "Stale nolint annotation on line "
-                <> int.to_string(annotation_line)
-                <> " is not followed by code",
+              location: glance.Span(start: offset, end: offset),
+              message: "Stale nolint annotation is not followed by code",
               details: "This // nolint: comment is followed by a blank line or end of file. Move it directly above the code it should suppress.",
             ),
           ]
@@ -186,20 +189,16 @@ fn apply_annotations(
           case list.contains(used_annotation_indices, idx) {
             True -> []
             False -> {
-              let annotation_line = case ann.scope {
-                annotation.FunctionScope -> ann.target_line - 1
-                _ -> ann.target_line - 1
-              }
+              let offset =
+                source.line_to_byte_offset(source_text, ann.comment_line)
               let rules_str = string.join(ann.rules, ", ")
               [
                 LintResult(
                   rule: "nolint_unused",
                   severity: rule.Warning,
                   file: file,
-                  location: glance.Span(start: 0, end: 0),
-                  message: "Unused nolint annotation on line "
-                    <> int.to_string(annotation_line)
-                    <> ": no "
+                  location: glance.Span(start: offset, end: offset),
+                  message: "Unused nolint annotation: no "
                     <> rules_str
                     <> " warnings were suppressed",
                   details: "This // nolint: comment didn't suppress any warnings. Remove it if the code has been fixed, or check the rule names for typos.",
@@ -210,6 +209,7 @@ fn apply_annotations(
       }
     })
     |> list.flatten()
+  }
 
   list.append(kept_results, unused_warnings)
 }

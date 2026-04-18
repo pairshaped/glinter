@@ -152,3 +152,23 @@ pub fn filter_annotations_keeps_non_matching_result_test() {
   let filtered = runner.filter_annotations([result], source, module)
   let assert True = list.length(filtered) == 1
 }
+
+pub fn function_scope_through_external_attributes_test() {
+  let source =
+    "// nolint: avoid_panic\n@external(erlang, \"m\", \"f\")\n@external(javascript, \"m.mjs\", \"f\")\npub fn my_ffi() {\n  panic as \"unreachable\"\n}"
+  let results = run_with_source(source, [avoid_panic.rule()])
+  let panic_errors =
+    results |> list.filter(fn(r) { r.rule == "avoid_panic" })
+  let assert True = panic_errors == []
+}
+
+pub fn nolint_unused_has_proper_location_test() {
+  let source = "// nolint: avoid_panic\npub fn good() { 1 }"
+  let results = run_with_source(source, [avoid_panic.rule()])
+  let unused =
+    results |> list.filter(fn(r) { r.rule == "nolint_unused" })
+  let assert True = list.length(unused) == 1
+  let assert [warning] = unused
+  // Location should point to line 1 (byte offset 0), not default 0
+  let assert True = warning.location.start == 0
+}

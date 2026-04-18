@@ -118,6 +118,38 @@ pub fn only_reason_no_rules_returns_no_annotation_test() {
   let assert True = results == []
 }
 
+pub fn skips_external_attribute_to_find_fn_test() {
+  let results =
+    annotation.parse(
+      "// nolint: avoid_panic\n@external(erlang, \"mod\", \"fn\")\npub fn my_ffi() { panic }",
+    )
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.scope == FunctionScope
+  let assert True = a.target_line == 3
+  let assert True = a.comment_line == 1
+}
+
+pub fn skips_multiple_attributes_to_find_fn_test() {
+  let results =
+    annotation.parse(
+      "// nolint: avoid_panic\n@external(erlang, \"m\", \"f\")\n@external(javascript, \"m.mjs\", \"f\")\npub fn my_ffi() { panic }",
+    )
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.scope == FunctionScope
+  let assert True = a.target_line == 4
+}
+
+pub fn tracks_comment_line_number_test() {
+  let results =
+    annotation.parse("some code\n// nolint: avoid_panic\npanic as \"x\"")
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.comment_line == 2
+  let assert True = a.target_line == 3
+}
+
 pub fn no_annotations_returns_empty_test() {
   let results = annotation.parse("pub fn ok() { 1 }")
   let assert True = results == []
