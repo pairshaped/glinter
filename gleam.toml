@@ -1,5 +1,5 @@
 name = "glinter"
-version = "2.12.0"
+version = "2.12.1"
 description = "A linter for the Gleam programming language"
 licences = ["MIT"]
 repository = { type = "github", user = "pairshaped", repo = "glinter" }
