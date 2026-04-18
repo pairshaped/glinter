@@ -21,7 +21,7 @@ pub fn rule() -> rule.Rule {
 fn on_function(
   definition: glance.Definition(glance.Function),
   _span: glance.Span,
-  context: Context,
+  _context: Context,
 ) -> #(List(rule.RuleError), Context) {
   #([], Context(in_external_fn: has_all_external_targets(definition)))
 }
