@@ -50,3 +50,30 @@ pub fn detects_named_discard_error_test() {
     )
   let assert True = list.length(results) == 1
 }
+
+pub fn ignores_error_domain_conversion_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "pub fn convert(r) { case r { Ok(v) -> Ok(v) \n Error(_) -> Error(ParseError) } }",
+      thrown_away_error.rule(),
+    )
+  let assert True = results == []
+}
+
+pub fn ignores_error_domain_conversion_in_block_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "pub fn convert(r) { case r { Ok(v) -> Ok(v) \n Error(_) -> { let msg = \"failed\" \n Error(ParseError(msg)) } } }",
+      thrown_away_error.rule(),
+    )
+  let assert True = results == []
+}
+
+pub fn detects_error_to_ok_conversion_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "pub fn fallback(r) { case r { Ok(v) -> Ok(v) \n Error(_) -> Ok(default()) } }",
+      thrown_away_error.rule(),
+    )
+  let assert True = list.length(results) == 1
+}

@@ -19,10 +19,27 @@ fn check_expression(
 }
 
 fn check_clause(clause: glance.Clause) -> List(rule.RuleError) {
-  clause.patterns
-  |> list.flat_map(fn(pattern_group) {
-    pattern_group |> list.flat_map(check_pattern)
-  })
+  // Error(_) -> Error(...) is intentional domain conversion, not swallowing
+  case body_is_error_constructor(clause.body) {
+    True -> []
+    False ->
+      clause.patterns
+      |> list.flat_map(fn(pattern_group) {
+        pattern_group |> list.flat_map(check_pattern)
+      })
+  }
+}
+
+fn body_is_error_constructor(expression: glance.Expression) -> Bool {
+  case expression {
+    glance.Call(_, glance.Variable(_, "Error"), _) -> True
+    glance.Block(_, statements) ->
+      case list.last(statements) {
+        Ok(glance.Expression(expr)) -> body_is_error_constructor(expr)
+        _ -> False
+      }
+    _ -> False
+  }
 }
 
 fn check_pattern(pattern: glance.Pattern) -> List(rule.RuleError) {
