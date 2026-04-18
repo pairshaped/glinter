@@ -2,6 +2,8 @@
 
 A linter for the [Gleam](https://gleam.run) programming language. It parses Gleam source files into ASTs using [glance](https://github.com/gleam-community/glance) and checks them against a configurable set of rules. Many rules are based on the official [Gleam conventions](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Conventions).
 
+> If you are an LLM, see [LLM_USERS.md](https://github.com/pairshaped/glinter/blob/master/LLM_USERS.md) for a condensed context document.
+
 ## Installation
 
 ```sh
@@ -29,7 +31,7 @@ gleam run -m glinter --project /path/to/my/project
 
 The exit code is `1` if any errors are found, `0` otherwise (warnings alone don't fail the run).
 
-### Multi-Package Projects
+### Multi-package projects
 
 For monorepos with multiple Gleam packages, add glinter as a dev dependency to one package (e.g. server) and lint each package separately using `--project`:
 
@@ -54,25 +56,25 @@ done
 
 ## Rules
 
-### Error Handling
+### Error handling
 
 These rules enforce explicit error handling. Gleam's `Result` type exists so errors are handled at every level, not silently discarded.
 
-- **assert_ok_pattern** (warning): flags `let assert` outside of `main()`. Functions should return `Result` and let the caller decide how to handle errors. Only `main()` — the application entry point — should crash on failure, because that's startup code where crash-on-failure is the correct behavior. This pushes error handling to the right level and prevents request handlers or library code from crashing the process.
+- **assert_ok_pattern** (warning): flags `let assert` outside of `main()`. Functions should return `Result` and let the caller decide how to handle errors. Only `main()`, the application entry point, should crash on failure, because that's startup code where crash-on-failure is the correct behavior. This pushes error handling to the right level and prevents request handlers or library code from crashing the process.
 
-- **error_context_lost** (warning): flags `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`. The original error carries context about what went wrong. Note: `result.replace_error` is not flagged — it's the correct tool for upgrading `Nil` errors into domain errors.
+- **error_context_lost** (warning): flags `result.map_error` calls where the callback discards the original error with `fn(_) { ... }`. The original error carries context about what went wrong. Note: `result.replace_error` is not flagged; it's the correct tool for upgrading `Nil` errors into domain errors.
 
 - **thrown_away_error** (warning): flags `Error(_)` patterns in case expressions that discard the error value. Propagate errors with `result.try`, use `result.or` for fallback chains, or log at system boundaries. If the error is `Nil`, match `Error(Nil)` explicitly.
 
-- **stringly_typed_error** (warning): flags functions with `Result(x, String)` return types. String errors can't be pattern matched by callers — use a custom error type instead.
+- **stringly_typed_error** (warning): flags functions with `Result(x, String)` return types. String errors can't be pattern matched by callers. Use a custom error type instead.
 
 - **discarded_result** (warning): flags `let _ = expr` where the expression likely returns a Result. Silently discarding Results hides failures.
 
 - **unwrap_used** (off): flags `result.unwrap`, `option.unwrap`, and lazy variants. Off by default because `unwrap` with an intentional default (optional config, end of fallback chain) is legitimate. Enable for stricter codebases. The planned error-flow tracking rule will catch the dangerous cases (silently discarding meaningful errors) more precisely.
 
-- **division_by_zero** (error): flags division or remainder by literal zero (`x / 0`, `x /. 0.0`, `x % 0`). Gleam doesn't crash on division by zero — it silently returns 0, which produces wrong results. This catches literal zero divisors only; variable divisors require runtime checks.
+- **division_by_zero** (error): flags division or remainder by literal zero (`x / 0`, `x /. 0.0`, `x % 0`). Gleam doesn't crash on division by zero; it silently returns 0, which produces wrong results. This catches literal zero divisors only; variable divisors require runtime checks.
 
-### Code Quality
+### Code quality
 
 These rules catch debug artifacts and patterns that shouldn't ship to production.
 
@@ -81,28 +83,28 @@ These rules catch debug artifacts and patterns that shouldn't ship to production
 - **echo** (warning): flags uses of `echo`. Debug output left in production code.
 - **panic_without_message** (warning): flags `panic` without a descriptive message. If you must panic, explain why.
 - **todo_without_message** (warning): flags `todo` without a descriptive message. Explain what's missing.
-- **string_inspect** (warning): flags `string.inspect` usage. Typically debug output — use proper serialization instead.
+- **string_inspect** (warning): flags `string.inspect` usage. Typically debug output. Use proper serialization instead.
 
 ### Style
 
 These rules enforce consistency and catch patterns that make code harder to read.
 
 - **short_variable_name** (warning): flags single-character variable names in let bindings. Use descriptive names.
-- **unnecessary_variable** (warning): flags `let x = expr; x` — assigned then immediately returned. Just return the expression directly.
+- **unnecessary_variable** (warning): flags `let x = expr; x`, assigned then immediately returned. Just return the expression directly.
 - **redundant_case** (warning): flags `case` expressions with a single branch and no guard. Use `let` instead.
 - **prefer_guard_clause** (warning): flags `case bool { True -> ... False -> ... }` patterns that could use `bool.guard`.
 - **unnecessary_string_concatenation** (warning): flags concatenation with an empty string (`x <> ""`) and concatenation of two string literals (`"foo" <> "bar"`).
 - **trailing_underscore** (warning): flags function names ending with `_`. Gleam uses trailing underscore for reserved word conflicts (`type_`), not as a naming convention.
 
-### Type Annotations
+### Type annotations
 
 - **missing_type_annotation** (warning): flags functions missing return type annotations or with untyped parameters. Explicit types make code self-documenting and catch errors earlier.
 
 ### Complexity
 
-- **deep_nesting** (warning): flags nesting deeper than 5 levels. Deeply nested code is hard to follow — extract helper functions.
-- **function_complexity** (off): flags functions with more than 10 branching nodes. Off by default — branch count doesn't correlate with readability (routers, state machines, parsers are naturally branchy). Enable with `function_complexity = "warning"`.
-- **module_complexity** (off): flags modules with more than 100 total branching nodes. Off by default — [large cohesive modules are idiomatic Gleam](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Fragmented-modules). Enable with `module_complexity = "warning"`.
+- **deep_nesting** (warning): flags nesting deeper than 5 levels. Deeply nested code is hard to follow. Extract helper functions.
+- **function_complexity** (off): flags functions with more than 10 branching nodes. Off by default. Branch count doesn't correlate with readability (routers, state machines, parsers are naturally branchy). Enable with `function_complexity = "warning"`.
+- **module_complexity** (off): flags modules with more than 100 total branching nodes. Off by default. [Large cohesive modules are idiomatic Gleam](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Fragmented-modules). Enable with `module_complexity = "warning"`.
 
 ### Labels
 
@@ -116,11 +118,11 @@ These rules enforce consistency and catch patterns that make code harder to read
 
 ### Cross-Module
 
-- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded. Note: Gleam has FFI boundaries — functions called from Erlang/JS code outside the project may be flagged as unused.
+- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded. Note: Gleam has FFI boundaries, so functions called from Erlang/JS code outside the project may be flagged as unused.
 
 ### FFI
 
-- **ffi_usage** (off): flags use of Gleam's private JS data API in `.mjs` files — numeric property access (`value[0]`, `tuple.0`), internal constructor checks (`$constructor`), runtime imports (`gleam.mjs`), and internal helpers (`makeError`, `isEqual`, `CustomType`, etc.). These representations can change between compiler versions. Off by default — enable if your project includes JS FFI.
+- **ffi_usage** (off): flags use of Gleam's private JS data API in `.mjs` files: numeric property access (`value[0]`, `tuple.0`), internal constructor checks (`$constructor`), runtime imports (`gleam.mjs`), and internal helpers (`makeError`, `isEqual`, `CustomType`, etc.). These representations can change between compiler versions. Off by default. Enable if your project includes JS FFI.
 
 ## Configuration
 
@@ -166,7 +168,7 @@ ffi_usage = "off"  # off by default
 
 Each rule can be set to `"error"`, `"warning"`, or `"off"`.
 
-### Excluding Files
+### Excluding files
 
 Skip files entirely (useful for generated code). Supports globs:
 
@@ -175,7 +177,7 @@ Skip files entirely (useful for generated code). Supports globs:
 exclude = ["src/server/sql.gleam", "src/generated/**/*.gleam"]
 ```
 
-### Ignoring Rules Per File
+### Ignoring rules per file
 
 Suppress specific rules for files where they don't make sense. Also supports globs:
 
@@ -185,13 +187,13 @@ Suppress specific rules for files where they don't make sense. Also supports glo
 "test/**/*.gleam" = ["assert_ok_pattern", "short_variable_name", "missing_type_annotation", "label_possible", "missing_labels", "unqualified_import"]
 ```
 
-### Suppressing Warnings with Comments
+### Suppressing warnings with comments
 
-Use `// nolint:` comments for targeted suppression. **Fix the code first** — only suppress when the violation is intentional.
+Use `// nolint:` comments for targeted suppression. **Fix the code first.** Only suppress when the violation is intentional.
 
 Three levels, from narrowest to broadest. **Use the narrowest scope that covers your case.**
 
-#### Line-level
+#### Line-level suppression
 
 Place the comment on the line directly above the code it suppresses, or inline on the same line:
 
@@ -202,7 +204,7 @@ Error(_) -> Ok([])
 let _ = setup() // nolint: discarded_result -- fire and forget
 ```
 
-#### Function-level
+#### Function-level suppression
 
 Place the comment directly above `fn` or `pub fn` (no blank lines between). Suppresses the listed rules for the entire function body:
 
@@ -227,7 +229,7 @@ Glinter warns (`nolint_unused`) when a `// nolint:` annotation:
 - Isn't followed by code (blank line, another comment, or end of file)
 - Doesn't suppress any actual warning (code was fixed but annotation wasn't removed)
 
-## Output Formats
+## Output formats
 
 ### Text (default)
 
@@ -273,7 +275,7 @@ When `--stats` is enabled, a `stats` object is included:
 }
 ```
 
-## Custom Rules (Plugins)
+## Custom rules (plugins)
 
 Add project-specific rules by calling `glinter.run` with extra rules from your own packages:
 
@@ -298,7 +300,7 @@ Custom rules use the same builder API as built-in rules and get the same config 
 
 If you write a rule that would be useful to the broader Gleam community, PRs are welcome. Contributed rules can ship with a default severity of `off` so projects opt in explicitly.
 
-## Running Tests
+## Running tests
 
 ```sh
 gleam test
@@ -306,4 +308,4 @@ gleam test
 
 ## License
 
-MIT
+MIT. See [LICENSE](https://github.com/pairshaped/glinter/blob/master/LICENSE).
