@@ -1,10 +1,10 @@
-import gleam/bit_array
 import gleam/int
 import gleam/json
 import gleam/list
 import gleam/order
 import gleam/string
 import glinter/rule.{type LintResult, type Severity}
+import glinter/source
 
 pub type Format {
   Text
@@ -15,27 +15,6 @@ pub type Stats {
   Stats(file_count: Int, line_count: Int, elapsed_ms: Int)
 }
 
-/// Convert byte offset to line number (1-indexed)
-fn byte_offset_to_line(source: String, offset: Int) -> Int {
-  let source_bytes = <<source:utf8>>
-  let size = bit_array.byte_size(source_bytes)
-  let clamped = case offset <= size {
-    True -> offset
-    False -> size
-  }
-  case bit_array.slice(source_bytes, 0, clamped) {
-    Ok(bytes) ->
-      case bit_array.to_string(bytes) {
-        Ok(s) ->
-          s
-          |> string.split("\n")
-          |> list.length()
-        Error(_) -> 1
-      }
-    Error(_) -> 1
-  }
-}
-
 /// Sort results by file, then by line number
 fn sort_results(
   results: List(LintResult),
@@ -44,7 +23,7 @@ fn sort_results(
   results
   |> list.map(fn(r) {
     let line = case list.find(sources, fn(s) { s.0 == r.file }) {
-      Ok(#(_, source)) -> byte_offset_to_line(source, r.location.start)
+      Ok(#(_, source_text)) -> source.byte_offset_to_line(source_text, r.location.start)
       _ -> 0
     }
     #(r, line)
