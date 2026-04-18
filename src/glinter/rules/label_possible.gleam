@@ -1,6 +1,6 @@
 import glance
 import gleam/list
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import glinter/rule
 
 pub fn rule() -> rule.Rule {
@@ -15,6 +15,40 @@ fn check_function(
 ) -> List(rule.RuleError) {
   let function = definition.definition
   let params = function.parameters
+
+  // Suppression: @external functions (labels can't be used at FFI call sites)
+  let is_external =
+    list.any(definition.attributes, fn(attr) { attr.name == "external" })
+  case is_external {
+    True -> []
+    False -> {
+      // Suppression: private functions with <= 2 params (micro-helper ceremony)
+      let is_private = function.publicity == glance.Private
+      case is_private && list.length(params) <= 2 {
+        True -> []
+        False -> {
+          // Suppression: any param is a function type (CPS/callback pattern)
+          let has_callback_param =
+            list.any(params, fn(param) {
+              case param.type_ {
+                Some(glance.FunctionType(..)) -> True
+                _ -> False
+              }
+            })
+          case has_callback_param {
+            True -> []
+            False -> check_params(params, span)
+          }
+        }
+      }
+    }
+  }
+}
+
+fn check_params(
+  params: List(glance.FunctionParameter),
+  span: glance.Span,
+) -> List(rule.RuleError) {
   // Skip functions with fewer than 2 params, or any unlabelled discard param
   // (you can't fully label a function that has an unlabelled discard)
   let has_unlabelled_discard =
