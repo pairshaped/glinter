@@ -185,6 +185,48 @@ Suppress specific rules for files where they don't make sense. Also supports glo
 "test/**/*.gleam" = ["assert_ok_pattern", "short_variable_name", "missing_type_annotation", "label_possible", "missing_labels", "unqualified_import"]
 ```
 
+### Suppressing Warnings with Comments
+
+Use `// nolint:` comments for targeted suppression. **Fix the code first** — only suppress when the violation is intentional.
+
+Three levels, from narrowest to broadest. **Use the narrowest scope that covers your case.**
+
+#### Line-level
+
+Place the comment on the line directly above the code it suppresses, or inline on the same line:
+
+```gleam
+// nolint: thrown_away_error -- key absent means use default
+Error(_) -> Ok([])
+
+let _ = setup() // nolint: discarded_result -- fire and forget
+```
+
+#### Function-level
+
+Place the comment directly above `fn` or `pub fn` (no blank lines between). Suppresses the listed rules for the entire function body:
+
+```gleam
+// nolint: deep_nesting, function_complexity -- recursive AST walker
+fn walk_expression(expr, context) {
+  // all deep_nesting and function_complexity warnings suppressed here
+}
+```
+
+#### Optional reason
+
+Add `--` after the rule list to explain why:
+
+```gleam
+// nolint: avoid_panic -- fallback body is unreachable with dual @external
+```
+
+#### Stale annotation detection
+
+Glinter warns (`nolint_unused`) when a `// nolint:` annotation:
+- Isn't followed by code (blank line, another comment, or end of file)
+- Doesn't suppress any actual warning (code was fixed but annotation wasn't removed)
+
 ## Output Formats
 
 ### Text (default)
