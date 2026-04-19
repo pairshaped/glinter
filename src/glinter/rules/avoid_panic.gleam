@@ -29,7 +29,10 @@ fn on_function(
   _span: glance.Span,
   context: Context,
 ) -> #(List(rule.RuleError), Context) {
-  #([], Context(..context, in_external_fn: has_all_external_targets(definition)))
+  #(
+    [],
+    Context(..context, in_external_fn: has_all_external_targets(definition)),
+  )
 }
 
 fn on_enter(
@@ -114,8 +117,10 @@ fn has_all_external_targets(
     definition.attributes
     |> list.filter_map(fn(attr) {
       case attr {
-        glance.Attribute(name: "external", arguments: [glance.Variable(_, target), ..]) ->
-          Ok(target)
+        glance.Attribute(
+          name: "external",
+          arguments: [glance.Variable(_, target), ..],
+        ) -> Ok(target)
         _ -> Error(Nil)
       }
     })

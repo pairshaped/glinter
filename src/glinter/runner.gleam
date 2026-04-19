@@ -54,7 +54,13 @@ fn run_module_rules(
           })
         })
 
-      apply_annotations(results, source_text, module, display_path, config.ignore)
+      apply_annotations(
+        results,
+        source_text,
+        module,
+        display_path,
+        config.ignore,
+      )
     },
     items: files,
   )
@@ -121,7 +127,15 @@ pub fn filter_annotations(
   |> list.filter(fn(result) {
     let error_line =
       source.byte_offset_to_line(source_text, result.location.start)
-    case find_matching_annotation(result, error_line, annotations, function_ranges, 0) {
+    case
+      find_matching_annotation(
+        result,
+        error_line,
+        annotations,
+        function_ranges,
+        0,
+      )
+    {
       Ok(_) -> False
       Error(_) -> True
     }
@@ -155,7 +169,15 @@ fn apply_annotations(
       let #(kept, used_indices) = acc
       let error_line =
         source.byte_offset_to_line(source_text, result.location.start)
-      case find_matching_annotation(result, error_line, annotations, function_ranges, 0) {
+      case
+        find_matching_annotation(
+          result,
+          error_line,
+          annotations,
+          function_ranges,
+          0,
+        )
+      {
         Ok(idx) -> #(kept, [idx, ..used_indices])
         Error(Nil) -> #([result, ..kept], used_indices)
       }
@@ -169,46 +191,47 @@ fn apply_annotations(
   let unused_warnings = case nolint_ignored {
     True -> []
     False ->
-    annotations
-    |> list.index_map(fn(ann, idx) {
-      case ann.scope {
-        annotation.Stale -> {
-          let offset = source.line_to_byte_offset(source_text, ann.comment_line)
-          [
-            LintResult(
-              rule: "nolint_unused",
-              severity: rule.Warning,
-              file: file,
-              location: glance.Span(start: offset, end: offset),
-              message: "Stale nolint annotation is not followed by code",
-              details: "This // nolint: comment is followed by a blank line or end of file. Move it directly above the code it should suppress.",
-            ),
-          ]
-        }
-        _ ->
-          case list.contains(used_annotation_indices, idx) {
-            True -> []
-            False -> {
-              let offset =
-                source.line_to_byte_offset(source_text, ann.comment_line)
-              let rules_str = string.join(ann.rules, ", ")
-              [
-                LintResult(
-                  rule: "nolint_unused",
-                  severity: rule.Warning,
-                  file: file,
-                  location: glance.Span(start: offset, end: offset),
-                  message: "Unused nolint annotation: no "
-                    <> rules_str
-                    <> " warnings were suppressed",
-                  details: "This // nolint: comment didn't suppress any warnings. Remove it if the code has been fixed, or check the rule names for typos.",
-                ),
-              ]
-            }
+      annotations
+      |> list.index_map(fn(ann, idx) {
+        case ann.scope {
+          annotation.Stale -> {
+            let offset =
+              source.line_to_byte_offset(source_text, ann.comment_line)
+            [
+              LintResult(
+                rule: "nolint_unused",
+                severity: rule.Warning,
+                file: file,
+                location: glance.Span(start: offset, end: offset),
+                message: "Stale nolint annotation is not followed by code",
+                details: "This // nolint: comment is followed by a blank line or end of file. Move it directly above the code it should suppress.",
+              ),
+            ]
           }
-      }
-    })
-    |> list.flatten()
+          _ ->
+            case list.contains(used_annotation_indices, idx) {
+              True -> []
+              False -> {
+                let offset =
+                  source.line_to_byte_offset(source_text, ann.comment_line)
+                let rules_str = string.join(ann.rules, ", ")
+                [
+                  LintResult(
+                    rule: "nolint_unused",
+                    severity: rule.Warning,
+                    file: file,
+                    location: glance.Span(start: offset, end: offset),
+                    message: "Unused nolint annotation: no "
+                      <> rules_str
+                      <> " warnings were suppressed",
+                    details: "This // nolint: comment didn't suppress any warnings. Remove it if the code has been fixed, or check the rule names for typos.",
+                  ),
+                ]
+              }
+            }
+        }
+      })
+      |> list.flatten()
   }
 
   list.append(kept_results, unused_warnings)
@@ -237,7 +260,13 @@ fn find_matching_annotation(
       case rule_matches && line_matches {
         True -> Ok(idx)
         False ->
-          find_matching_annotation(result, error_line, rest, function_ranges, idx + 1)
+          find_matching_annotation(
+            result,
+            error_line,
+            rest,
+            function_ranges,
+            idx + 1,
+          )
       }
     }
   }

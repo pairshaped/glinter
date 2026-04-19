@@ -500,8 +500,7 @@ fn run_module_schema_with_context(
       // 2a. Call function visitor
       let #(fn_errors, ctx) = case schema.function_visitor {
         None -> #([], ctx)
-        Some(visitor) ->
-          visitor(func_def, func_def.definition.location, ctx)
+        Some(visitor) -> visitor(func_def, func_def.definition.location, ctx)
       }
 
       // 2b. Walk the function body (list of statements)

@@ -40,10 +40,7 @@ pub fn ignores_reason_after_dashes_test() {
 }
 
 pub fn detects_function_scope_fn_test() {
-  let results =
-    annotation.parse(
-      "// nolint: deep_nesting\nfn walk(x) { x }",
-    )
+  let results = annotation.parse("// nolint: deep_nesting\nfn walk(x) { x }")
   let assert True = list.length(results) == 1
   let assert [a] = results
   let assert True = a.scope == FunctionScope
@@ -52,9 +49,7 @@ pub fn detects_function_scope_fn_test() {
 
 pub fn detects_function_scope_pub_fn_test() {
   let results =
-    annotation.parse(
-      "// nolint: deep_nesting\npub fn walk(x) { x }",
-    )
+    annotation.parse("// nolint: deep_nesting\npub fn walk(x) { x }")
   let assert True = list.length(results) == 1
   let assert [a] = results
   let assert True = a.scope == FunctionScope
@@ -63,9 +58,7 @@ pub fn detects_function_scope_pub_fn_test() {
 
 pub fn detects_line_scope_for_non_fn_test() {
   let results =
-    annotation.parse(
-      "// nolint: thrown_away_error\nError(_) -> Ok([])",
-    )
+    annotation.parse("// nolint: thrown_away_error\nError(_) -> Ok([])")
   let assert True = list.length(results) == 1
   let assert [a] = results
   let assert True = a.scope == LineScope

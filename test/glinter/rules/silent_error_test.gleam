@@ -25,8 +25,7 @@ pub fn filter_map_silently_drops_errors_test() {
   let assert True = results == []
 
   // thrown_away_error doesn't catch this either
-  let results2 =
-    test_helpers.lint_string_rule(source, thrown_away_error.rule())
+  let results2 = test_helpers.lint_string_rule(source, thrown_away_error.rule())
   let assert True = results2 == []
   // GAP: errors from item_from_row are silently dropped
 }
@@ -47,8 +46,7 @@ pub fn ok_values_silently_drops_errors_test() {
   let results = test_helpers.lint_string_rule(source, discarded_result.rule())
   let assert True = results == []
 
-  let results2 =
-    test_helpers.lint_string_rule(source, thrown_away_error.rule())
+  let results2 = test_helpers.lint_string_rule(source, thrown_away_error.rule())
   let assert True = results2 == []
   // GAP: errors from item_from_row are silently dropped
 }
@@ -69,8 +67,7 @@ pub fn unwrap_hides_error_test() {
   let results = test_helpers.lint_string_rule(source, discarded_result.rule())
   let assert True = results == []
 
-  let results2 =
-    test_helpers.lint_string_rule(source, thrown_away_error.rule())
+  let results2 = test_helpers.lint_string_rule(source, thrown_away_error.rule())
   let assert True = results2 == []
   // GAP: bad status silently replaced with Default, no logging
 }

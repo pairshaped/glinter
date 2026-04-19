@@ -62,8 +62,10 @@ fn has_all_external_targets(
     definition.attributes
     |> list.filter_map(fn(attr) {
       case attr {
-        glance.Attribute(name: "external", arguments: [glance.Variable(_, target), ..]) ->
-          Ok(target)
+        glance.Attribute(
+          name: "external",
+          arguments: [glance.Variable(_, target), ..],
+        ) -> Ok(target)
         _ -> Error(Nil)
       }
     })

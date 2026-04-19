@@ -22,7 +22,8 @@ fn check_function(
     list.any(definition.attributes, fn(attr) { attr.name == "external" })
 
   // Suppression: private functions with <= 2 params (micro-helper ceremony)
-  let is_private_micro = function.publicity == glance.Private && param_count <= 2
+  let is_private_micro =
+    function.publicity == glance.Private && param_count <= 2
 
   // Suppression: any param is a function type (CPS/callback pattern)
   let has_callback_param =

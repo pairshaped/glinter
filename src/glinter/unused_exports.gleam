@@ -463,10 +463,7 @@ fn search_type(type_: Type, aliases: List(String), member_name: String) -> Bool 
 /// A pub type that appears in the signature of a pub function or as a field
 /// in another pub type in the same module MUST be public — flagging it as
 /// "unused" is a false positive.
-fn is_type_required_by_pub_interface(
-  module: Module,
-  type_name: String,
-) -> Bool {
+fn is_type_required_by_pub_interface(module: Module, type_name: String) -> Bool {
   // Check pub function signatures
   list.any(module.functions, fn(def) {
     let Definition(_, func) = def

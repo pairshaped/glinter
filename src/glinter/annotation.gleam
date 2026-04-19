@@ -104,10 +104,7 @@ fn determine_scope(
 /// Look at the next non-attribute line to determine scope.
 /// Skips @attribute lines (e.g. @external, @deprecated) to find the fn.
 /// next_line_num is the line number of the first line in `lines`.
-fn classify_next_line(
-  lines: List(String),
-  next_line_num: Int,
-) -> #(Scope, Int) {
+fn classify_next_line(lines: List(String), next_line_num: Int) -> #(Scope, Int) {
   case lines {
     [] -> #(Stale, next_line_num - 1)
     [next_line, ..rest] -> {

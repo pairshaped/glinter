@@ -45,8 +45,10 @@ fn on_exit(
   context: Context,
 ) -> #(List(rule.RuleError), Context) {
   case expression {
-    glance.BinaryOperator(_, glance.Concatenate, _, _) ->
-      #([], Context(concat_depth: context.concat_depth - 1))
+    glance.BinaryOperator(_, glance.Concatenate, _, _) -> #(
+      [],
+      Context(concat_depth: context.concat_depth - 1),
+    )
     _ -> #([], context)
   }
 }
@@ -103,8 +105,7 @@ fn check_chain(
     })
   let literal_errors = case has_non_literal {
     True -> []
-    False ->
-      check_adjacent_literals(non_empty_segments, span)
+    False -> check_adjacent_literals(non_empty_segments, span)
   }
 
   list.append(empty_errors, literal_errors)

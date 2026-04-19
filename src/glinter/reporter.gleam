@@ -23,7 +23,8 @@ fn sort_results(
   results
   |> list.map(fn(r) {
     let line = case list.find(sources, fn(s) { s.0 == r.file }) {
-      Ok(#(_, source_text)) -> source.byte_offset_to_line(source_text, r.location.start)
+      Ok(#(_, source_text)) ->
+        source.byte_offset_to_line(source_text, r.location.start)
       _ -> 0
     }
     #(r, line)

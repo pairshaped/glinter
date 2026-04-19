@@ -75,8 +75,7 @@ pub fn empty_exclude_list_test() {
 // so the pattern silently does nothing.
 pub fn excludes_directory_prefix_shallow_test() {
   let exclude = ["src/generated/"]
-  let assert True =
-    ignore.is_file_excluded("src/generated/foo.gleam", exclude)
+  let assert True = ignore.is_file_excluded("src/generated/foo.gleam", exclude)
 }
 
 pub fn excludes_directory_prefix_deeply_nested_test() {

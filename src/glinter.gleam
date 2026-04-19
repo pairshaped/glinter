@@ -154,8 +154,7 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   }
   io.println(output)
 
-  let has_errors =
-    list.any(results, fn(r) { r.severity == rule.Error })
+  let has_errors = list.any(results, fn(r) { r.severity == rule.Error })
   case has_errors {
     True -> halt(1)
     False -> halt(0)
@@ -275,10 +274,7 @@ fn load_config(path: String) -> config.Config {
   }
 }
 
-fn apply_config(
-  rules: List(rule.Rule),
-  cfg: config.Config,
-) -> List(rule.Rule) {
+fn apply_config(rules: List(rule.Rule), cfg: config.Config) -> List(rule.Rule) {
   rules
   |> list.filter(fn(r) {
     case dict.get(cfg.rules, rule.name(r)) {
@@ -389,11 +385,7 @@ fn run_unused_exports(
               Ok(source) ->
                 case glance.module(source) {
                   Ok(module) ->
-                    Ok(#(
-                      rel_path,
-                      file_path_to_module_path(rel_path),
-                      module,
-                    ))
+                    Ok(#(rel_path, file_path_to_module_path(rel_path), module))
                   Error(_) -> Error(Nil)
                 }
               Error(_) -> Error(Nil)
