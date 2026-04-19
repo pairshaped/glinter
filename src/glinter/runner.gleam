@@ -193,48 +193,83 @@ fn apply_annotations(
     False ->
       annotations
       |> list.index_map(fn(ann, idx) {
-        case ann.scope {
-          annotation.Stale -> {
-            let offset =
-              source.line_to_byte_offset(source_text, ann.comment_line)
-            [
-              LintResult(
-                rule: "nolint_unused",
-                severity: rule.Warning,
-                file: file,
-                location: glance.Span(start: offset, end: offset),
-                message: "Stale nolint annotation is not followed by code",
-                details: "This // nolint: comment is followed by a blank line or end of file. Move it directly above the code it should suppress.",
-              ),
-            ]
-          }
-          _ ->
-            case list.contains(used_annotation_indices, idx) {
-              True -> []
-              False -> {
+        // Inline annotations are reported separately as nolint_inline; don't
+        // also flag them as unused (the underlying error already fires too).
+        case ann.inline {
+          True -> []
+          False ->
+            case ann.scope {
+              annotation.Stale -> {
                 let offset =
                   source.line_to_byte_offset(source_text, ann.comment_line)
-                let rules_str = string.join(ann.rules, ", ")
                 [
                   LintResult(
                     rule: "nolint_unused",
                     severity: rule.Warning,
                     file: file,
                     location: glance.Span(start: offset, end: offset),
-                    message: "Unused nolint annotation: no "
-                      <> rules_str
-                      <> " warnings were suppressed",
-                    details: "This // nolint: comment didn't suppress any warnings. Remove it if the code has been fixed, or check the rule names for typos.",
+                    message: "Stale nolint annotation is not followed by code",
+                    details: "This // nolint: comment is followed by a blank line or end of file. Move it directly above the code it should suppress.",
                   ),
                 ]
               }
+              _ ->
+                case list.contains(used_annotation_indices, idx) {
+                  True -> []
+                  False -> {
+                    let offset =
+                      source.line_to_byte_offset(source_text, ann.comment_line)
+                    let rules_str = string.join(ann.rules, ", ")
+                    [
+                      LintResult(
+                        rule: "nolint_unused",
+                        severity: rule.Warning,
+                        file: file,
+                        location: glance.Span(start: offset, end: offset),
+                        message: "Unused nolint annotation: no "
+                          <> rules_str
+                          <> " warnings were suppressed",
+                        details: "This // nolint: comment didn't suppress any warnings. Remove it if the code has been fixed, or check the rule names for typos.",
+                      ),
+                    ]
+                  }
+                }
             }
         }
       })
       |> list.flatten()
   }
 
-  list.append(kept_results, unused_warnings)
+  // Emit nolint_inline warnings for trailing inline nolints. These are
+  // disallowed because `gleam format` may move them off the line when wrapping,
+  // silently breaking the suppression. Suppression is also disabled for these
+  // (see find_matching_annotation), so the underlying error still fires.
+  let inline_ignored =
+    ignore.is_rule_ignored(file, "nolint_inline", ignore_config)
+  let inline_warnings = case inline_ignored {
+    True -> []
+    False ->
+      annotations
+      |> list.filter_map(fn(ann) {
+        case ann.inline {
+          False -> Error(Nil)
+          True -> {
+            let offset =
+              source.line_to_byte_offset(source_text, ann.comment_line)
+            Ok(LintResult(
+              rule: "nolint_inline",
+              severity: rule.Warning,
+              file: file,
+              location: glance.Span(start: offset, end: offset),
+              message: "Trailing inline nolint is disallowed: move it to its own line above the target",
+              details: "// nolint comments must precede the line they suppress, e.g.\n    // nolint: avoid_panic\n    panic as \"x\"\nTrailing inline placement (`code // nolint:`) is fragile because `gleam format` may move the comment off the line when wrapping, silently breaking the suppression.",
+            ))
+          }
+        }
+      })
+  }
+
+  list.append(kept_results, list.append(unused_warnings, inline_warnings))
 }
 
 /// Find the index of an annotation that suppresses the given result.
@@ -249,7 +284,10 @@ fn find_matching_annotation(
   case annotations {
     [] -> Error(Nil)
     [ann, ..rest] -> {
-      let rule_matches = list.contains(ann.rules, result.rule)
+      // Inline trailing nolints are disallowed (they break under gleam format).
+      // Skip them entirely so the underlying error fires; the runner emits a
+      // separate `nolint_inline` warning.
+      let rule_matches = !ann.inline && list.contains(ann.rules, result.rule)
       let line_matches = case ann.scope {
         annotation.LineScope -> ann.target_line == error_line
         annotation.FunctionScope ->

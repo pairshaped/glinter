@@ -65,11 +65,22 @@ pub fn unused_annotation_produces_warning_test() {
   let assert True = list.length(nolint_warnings) == 1
 }
 
-pub fn inline_same_line_suppression_test() {
+pub fn inline_trailing_nolint_does_not_suppress_test() {
+  // Trailing inline nolints are disallowed because `gleam format` may move
+  // them off the line when wrapping, silently breaking the suppression.
+  // The user should put the comment on its own line above the target.
   let source = "pub fn x() {\n  panic as \"ok\" // nolint: avoid_panic\n}"
   let results = run_with_source(source, [avoid_panic.rule()])
   let panic_errors = results |> list.filter(fn(r) { r.rule == "avoid_panic" })
-  let assert True = panic_errors == []
+  let assert True = list.length(panic_errors) == 1
+}
+
+pub fn inline_trailing_nolint_emits_warning_test() {
+  let source = "pub fn x() {\n  panic as \"ok\" // nolint: avoid_panic\n}"
+  let results = run_with_source(source, [avoid_panic.rule()])
+  let inline_warnings =
+    results |> list.filter(fn(r) { r.rule == "nolint_inline" })
+  let assert True = list.length(inline_warnings) == 1
 }
 
 pub fn one_used_one_unused_annotation_test() {

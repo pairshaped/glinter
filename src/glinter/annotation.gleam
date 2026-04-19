@@ -13,6 +13,12 @@ pub type Annotation {
     comment_line: Int,
     target_line: Int,
     scope: Scope,
+    /// True when the nolint comment trails real code on the same line, e.g.
+    /// `panic as "x" // nolint: avoid_panic`. Inline placement is disallowed
+    /// because `gleam format` may move the comment off the line when wrapping,
+    /// silently breaking the suppression. Inline annotations do NOT suppress;
+    /// the runner emits a `nolint_inline` warning instead.
+    inline: Bool,
   )
 }
 
@@ -33,12 +39,14 @@ fn parse_lines(
       case extract_nolint(line) {
         Ok(rules) -> {
           let #(scope, target_line) = determine_scope(line, rest, line_num)
+          let inline = is_inline(line)
           let annotation =
             Annotation(
               rules: rules,
               comment_line: line_num,
               target_line: target_line,
               scope: scope,
+              inline: inline,
             )
           parse_lines(rest, line_num + 1, [annotation, ..acc])
         }
@@ -80,22 +88,29 @@ fn extract_nolint(line: String) -> Result(List(String), Nil) {
   }
 }
 
+/// True when there's real code before the nolint comment on the same line.
+pub fn is_inline(line: String) -> Bool {
+  before_nolint(line) != ""
+}
+
+fn before_nolint(line: String) -> String {
+  case string.split(line, "/// nolint:") {
+    [prefix, _, ..] -> string.trim(prefix)
+    _ ->
+      case string.split(line, "// nolint:") {
+        [prefix, _, ..] -> string.trim(prefix)
+        _ -> ""
+      }
+  }
+}
+
 /// Determine scope based on whether the line is inline and what follows it.
 fn determine_scope(
   current_line: String,
   remaining_lines: List(String),
   current_line_num: Int,
 ) -> #(Scope, Int) {
-  // Try /// nolint: first, then // nolint:
-  let before_nolint = case string.split(current_line, "/// nolint:") {
-    [prefix, _, ..] -> string.trim(prefix)
-    _ ->
-      case string.split(current_line, "// nolint:") {
-        [prefix, _, ..] -> string.trim(prefix)
-        _ -> ""
-      }
-  }
-  case before_nolint {
+  case before_nolint(current_line) {
     "" -> classify_next_line(remaining_lines, current_line_num + 1)
     _ -> #(LineScope, current_line_num)
   }
