@@ -492,8 +492,7 @@ pub fn main() { Nil }",
 }
 
 pub fn private_function_with_internal_flagged_test() {
-  // @internal on a private function has no effect and should be flagged
-  // as a leftover annotation.
+  // @internal on a private function is a compiler diagnostic, not glinter's job.
   let src_files = [
     parse(
       path: "src/myapp/users.gleam",
@@ -510,15 +509,11 @@ fn helper() { Nil }",
       parsed_test: test_files,
       severity: rule.Warning,
     )
-  let assert True = list.length(results) == 1
-  let assert [result] = results
-  let assert True =
-    result.message
-    == "Private function 'helper' has @internal — annotation has no effect on non-pub definitions"
+  let assert True = results == []
 }
 
 pub fn private_type_with_internal_flagged_test() {
-  // @internal on a private type has no effect and should be flagged.
+  // @internal on a private type is a compiler diagnostic, not glinter's job.
   let src_files = [
     parse(
       path: "src/myapp/users.gleam",
@@ -535,9 +530,5 @@ type Helper { X }",
       parsed_test: test_files,
       severity: rule.Warning,
     )
-  let assert True = list.length(results) == 1
-  let assert [result] = results
-  let assert True =
-    result.message
-    == "Private type 'Helper' has @internal — annotation has no effect on non-pub definitions"
+  let assert True = results == []
 }
