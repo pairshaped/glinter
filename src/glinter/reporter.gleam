@@ -59,12 +59,7 @@ pub fn format_text(
       <> r.message
     })
 
-  let error_count =
-    results |> list.filter(fn(r) { r.severity == rule.Error }) |> list.length()
-  let warning_count =
-    results
-    |> list.filter(fn(r) { r.severity == rule.Warning })
-    |> list.length()
+  let #(error_count, warning_count) = count_issues(results)
   let total = list.length(results)
 
   let summary =
@@ -100,12 +95,7 @@ pub fn format_json(
   stats: Stats,
 ) -> String {
   let sorted = sort_results(results, sources)
-  let error_count =
-    results |> list.filter(fn(r) { r.severity == rule.Error }) |> list.length()
-  let warning_count =
-    results
-    |> list.filter(fn(r) { r.severity == rule.Warning })
-    |> list.length()
+  let #(error_count, warning_count) = count_issues(results)
 
   let result_objects =
     sorted
@@ -190,4 +180,12 @@ fn pluralize(count: Int, singular: String, plural: String) -> String {
     1 -> singular
     _ -> plural
   }
+}
+
+fn count_issues(results: List(LintResult)) -> #(Int, Int) {
+  let error_count =
+    results |> list.filter(fn(r) { r.severity == rule.Error }) |> list.length()
+  let warning_count =
+    results |> list.filter(fn(r) { r.severity == rule.Warning }) |> list.length()
+  #(error_count, warning_count)
 }

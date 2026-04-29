@@ -1,6 +1,7 @@
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import glinter/rule
 import tom
 
 pub type SeverityOverride {
@@ -134,5 +135,21 @@ fn parse_ignore(parsed: Dict(String, tom.Toml)) -> Dict(String, List(String)) {
       })
       |> dict.from_list()
     }
+  }
+}
+
+/// Resolve the effective severity for a rule from config.
+/// `default` is called when the rule is not present in config at all.
+/// Returns Error(Nil) when the rule is explicitly turned off.
+pub fn resolve_severity(
+  cfg: Config,
+  rule_name: String,
+  default: fn() -> Result(rule.Severity, Nil),
+) -> Result(rule.Severity, Nil) {
+  case dict.get(cfg.rules, rule_name) {
+    Ok(None) -> Error(Nil)
+    Ok(Some(SeverityError)) -> Ok(rule.Error)
+    Ok(Some(SeverityWarning)) -> Ok(rule.Warning)
+    Error(_) -> default()
   }
 }

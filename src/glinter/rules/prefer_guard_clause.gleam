@@ -1,6 +1,6 @@
 import glance
 import gleam/option.{None}
-import gleam/string
+import glinter/helpers
 import glinter/rule
 
 pub fn rule() -> rule.Rule {
@@ -62,14 +62,7 @@ fn is_simple(expr: glance.Expression) -> Bool {
     | glance.Variable(..)
     | glance.Tuple(..) -> True
     // Constructor calls like Ok(Nil), Error(err), Some(value)
-    glance.Call(_, glance.Variable(_, name), _) -> starts_uppercase(name)
+    glance.Call(_, glance.Variable(_, name), _) -> helpers.starts_uppercase(name)
     _ -> False
-  }
-}
-
-fn starts_uppercase(name: String) -> Bool {
-  case string.first(name) {
-    Ok(c) -> c == string.uppercase(c)
-    Error(_) -> False
   }
 }

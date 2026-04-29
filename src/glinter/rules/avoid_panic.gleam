@@ -1,6 +1,7 @@
 import glance
 import gleam/list
 import gleam/option.{Some}
+import glinter/helpers
 import glinter/rule
 
 type Context {
@@ -31,7 +32,7 @@ fn on_function(
 ) -> #(List(rule.RuleError), Context) {
   #(
     [],
-    Context(..context, in_external_fn: has_all_external_targets(definition)),
+    Context(..context, in_external_fn: helpers.has_all_external_targets(definition)),
   )
 }
 
@@ -107,22 +108,4 @@ fn has_qualified_constructor(pattern: glance.Pattern) -> Bool {
     glance.PatternVariant(module: Some(_), ..) -> True
     _ -> False
   }
-}
-
-/// Check if a function has @external annotations covering all compile targets.
-fn has_all_external_targets(
-  definition: glance.Definition(glance.Function),
-) -> Bool {
-  let targets =
-    definition.attributes
-    |> list.filter_map(fn(attr) {
-      case attr {
-        glance.Attribute(
-          name: "external",
-          arguments: [glance.Variable(_, target), ..],
-        ) -> Ok(target)
-        _ -> Error(Nil)
-      }
-    })
-  list.contains(targets, "erlang") && list.contains(targets, "javascript")
 }

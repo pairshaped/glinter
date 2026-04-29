@@ -2,6 +2,7 @@ import glance
 import gleam/list
 import gleam/string
 import glinter/rule
+import glinter/source
 import simplifile
 
 /// Patterns that indicate use of Gleam's private JS data API.
@@ -104,16 +105,18 @@ fn has_dot_numeric_access(line: String) -> Bool {
   }
 }
 
+fn is_digit_char(c: String) -> Bool {
+  case c {
+    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
+    _ -> False
+  }
+}
+
 /// Take leading digit characters from a string
 fn take_digits(s: String) -> String {
   s
   |> string.to_graphemes()
-  |> list.take_while(fn(c) {
-    case c {
-      "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
-      _ -> False
-    }
-  })
+  |> list.take_while(is_digit_char)
   |> string.concat()
 }
 
@@ -135,15 +138,7 @@ fn is_followed_by_boundary(s: String, digit_count: Int) -> Bool {
 }
 
 fn is_digits(s: String) -> Bool {
-  s != ""
-  && s
-  |> string.to_graphemes()
-  |> list.all(fn(c) {
-    case c {
-      "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
-      _ -> False
-    }
-  })
+  s != "" && s |> string.to_graphemes() |> list.all(is_digit_char)
 }
 
 /// Check for imports from gleam runtime (e.g. from "./gleam.mjs" or "../gleam.mjs")
@@ -186,7 +181,7 @@ pub fn check_ffi_files(
             files
             |> list.filter(fn(f) { string.ends_with(f, ".mjs") })
             |> list.flat_map(fn(abs_path) {
-              let display_path = strip_prefix(abs_path, project_prefix)
+              let display_path = source.strip_prefix(abs_path, project_prefix)
               case simplifile.read(abs_path) {
                 Ok(source) -> check_source(display_path, source)
                 Error(_) -> []
@@ -197,15 +192,4 @@ pub fn check_ffi_files(
       _ -> []
     }
   })
-}
-
-fn strip_prefix(path: String, prefix: String) -> String {
-  case prefix {
-    "" -> path
-    _ ->
-      case string.starts_with(path, prefix) {
-        True -> string.drop_start(path, string.length(prefix))
-        False -> path
-      }
-  }
 }

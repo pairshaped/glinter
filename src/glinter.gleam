@@ -38,6 +38,7 @@ import glinter/rules/unnecessary_variable
 import glinter/rules/unqualified_import
 import glinter/rules/unwrap_used
 import glinter/runner
+import glinter/source
 import glinter/unused_exports
 import simplifile
 
@@ -83,7 +84,7 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   // and cleaner output
   let file_paths =
     discover_files(effective_paths)
-    |> list.map(fn(f) { strip_prefix(f, project_prefix) })
+    |> list.map(fn(f) { source.strip_prefix(f, project_prefix) })
     |> list.filter(fn(f) { !ignore.is_file_excluded(f, cfg.exclude) })
 
   // Read and parse files, collecting sources for reporter and cross-module passes
@@ -311,18 +312,6 @@ fn discover_files(paths: List(String)) -> List(String) {
   |> list.sort(string.compare)
 }
 
-/// Strip a prefix from a path, returning the relative portion.
-fn strip_prefix(path: String, prefix: String) -> String {
-  case prefix {
-    "" -> path
-    _ ->
-      case string.starts_with(path, prefix) {
-        True -> string.drop_start(path, string.length(prefix))
-        False -> path
-      }
-  }
-}
-
 /// Convert a file path like "src/myapp/users.gleam" to module path "myapp/users"
 fn file_path_to_module_path(path: String) -> String {
   path
@@ -355,13 +344,8 @@ fn run_unused_exports(
   project_prefix: String,
   cfg: config.Config,
 ) -> List(rule.LintResult) {
-  // Check if rule is enabled
-  let severity = case dict.get(cfg.rules, "unused_exports") {
-    Ok(None) -> Error(Nil)
-    Ok(Some(config.SeverityError)) -> Ok(rule.Error)
-    Ok(Some(config.SeverityWarning)) -> Ok(rule.Warning)
-    Error(_) -> Ok(rule.Warning)
-  }
+  let severity =
+    config.resolve_severity(cfg, "unused_exports", fn() { Ok(rule.Warning) })
 
   case severity {
     Error(_) -> []
@@ -380,7 +364,7 @@ fn run_unused_exports(
         Ok(True) ->
           discover_files([test_dir])
           |> list.filter_map(fn(abs_path) {
-            let rel_path = strip_prefix(abs_path, project_prefix)
+            let rel_path = source.strip_prefix(abs_path, project_prefix)
             case simplifile.read(abs_path) {
               Ok(source) ->
                 case glance.module(source) {
@@ -413,19 +397,15 @@ fn run_ffi_usage(
   project_prefix: String,
   cfg: config.Config,
 ) -> List(rule.LintResult) {
-  let severity = case dict.get(cfg.rules, "ffi_usage") {
-    Ok(None) -> Error(Nil)
-    Ok(Some(config.SeverityError)) -> Ok(rule.Error)
-    Ok(Some(config.SeverityWarning)) -> Ok(rule.Warning)
-    Error(_) -> Error(Nil)
-  }
+  let severity =
+    config.resolve_severity(cfg, "ffi_usage", fn() { Error(Nil) })
 
   case severity {
     Error(_) -> []
     Ok(sev) -> {
       let dirs =
         effective_paths
-        |> list.map(fn(p) { strip_prefix(p, project_prefix) })
+        |> list.map(fn(p) { source.strip_prefix(p, project_prefix) })
       ffi_usage.check_ffi_files(dirs, project_prefix)
       |> list.map(fn(r) { rule.LintResult(..r, severity: sev) })
       |> list.filter(fn(r) {

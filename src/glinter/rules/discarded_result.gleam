@@ -1,5 +1,5 @@
 import glance
-import gleam/list
+import glinter/helpers
 import glinter/rule
 
 type Context {
@@ -23,7 +23,7 @@ fn on_function(
   _span: glance.Span,
   _context: Context,
 ) -> #(List(rule.RuleError), Context) {
-  #([], Context(in_external_fn: has_all_external_targets(definition)))
+  #([], Context(in_external_fn: helpers.has_all_external_targets(definition)))
 }
 
 fn check_statement(
@@ -52,22 +52,4 @@ fn check_statement(
         _ -> #([], context)
       }
   }
-}
-
-/// Check if a function has @external annotations covering all compile targets.
-fn has_all_external_targets(
-  definition: glance.Definition(glance.Function),
-) -> Bool {
-  let targets =
-    definition.attributes
-    |> list.filter_map(fn(attr) {
-      case attr {
-        glance.Attribute(
-          name: "external",
-          arguments: [glance.Variable(_, target), ..],
-        ) -> Ok(target)
-        _ -> Error(Nil)
-      }
-    })
-  list.contains(targets, "erlang") && list.contains(targets, "javascript")
 }

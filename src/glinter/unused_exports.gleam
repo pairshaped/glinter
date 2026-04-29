@@ -37,80 +37,19 @@ fn has_internal(attributes: List(Attribute)) -> Bool {
 
 // --- Collect pub definitions from a module ---
 
+/// Collect public definitions that are NOT @internal (the "unused export" candidates).
 pub fn collect_pub_definitions(module: Module) -> List(PubDefinition) {
-  let functions =
-    module.functions
-    |> list.filter_map(fn(def) {
-      let Definition(
-        attributes,
-        Function(name: name, publicity: publicity, location: location, ..),
-      ) = def
-      case publicity, name {
-        Public, "main" -> Error(Nil)
-        Public, _ ->
-          case has_internal(attributes) {
-            True -> Error(Nil)
-            False ->
-              Ok(PubDefinition(name: name, kind: PubFunction, location: location))
-          }
-        _, _ -> Error(Nil)
-      }
-    })
-
-  let constants =
-    module.constants
-    |> list.filter_map(fn(def) {
-      let Definition(
-        _,
-        Constant(name: name, publicity: publicity, location: location, ..),
-      ) = def
-      case publicity {
-        Public ->
-          Ok(PubDefinition(name: name, kind: PubConstant, location: location))
-        _ -> Error(Nil)
-      }
-    })
-
-  let types =
-    module.custom_types
-    |> list.filter_map(fn(def) {
-      let Definition(
-        attributes,
-        CustomType(name: name, publicity: publicity, location: location, ..),
-      ) = def
-      case publicity {
-        Public ->
-          case has_internal(attributes) {
-            True -> Error(Nil)
-            False ->
-              Ok(PubDefinition(name: name, kind: PubCustomType, location: location))
-          }
-        _ -> Error(Nil)
-      }
-    })
-
-  let aliases =
-    module.type_aliases
-    |> list.filter_map(fn(def) {
-      let Definition(
-        attributes,
-        TypeAlias(name: name, publicity: publicity, location: location, ..),
-      ) = def
-      case publicity {
-        Public ->
-          case has_internal(attributes) {
-            True -> Error(Nil)
-            False ->
-              Ok(PubDefinition(name: name, kind: PubTypeAlias, location: location))
-          }
-        _ -> Error(Nil)
-      }
-    })
-
-  list.flatten([functions, constants, types, aliases])
+  collect_pub_defs_filtered(module, internal: False)
 }
 
 fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
+  collect_pub_defs_filtered(module, internal: True)
+}
+
+fn collect_pub_defs_filtered(
+  module: Module,
+  internal internal: Bool,
+) -> List(PubDefinition) {
   let fns =
     module.functions
     |> list.filter_map(fn(def) {
@@ -121,7 +60,7 @@ fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
       case publicity, name {
         Public, "main" -> Error(Nil)
         Public, _ ->
-          case has_internal(attributes) {
+          case has_internal(attributes) == internal {
             True ->
               Ok(PubDefinition(name: name, kind: PubFunction, location: location))
             False -> Error(Nil)
@@ -129,6 +68,23 @@ fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
         _, _ -> Error(Nil)
       }
     })
+
+  let constants = case internal {
+    True -> []
+    False ->
+      module.constants
+      |> list.filter_map(fn(def) {
+        let Definition(
+          _,
+          Constant(name: name, publicity: publicity, location: location, ..),
+        ) = def
+        case publicity {
+          Public ->
+            Ok(PubDefinition(name: name, kind: PubConstant, location: location))
+          _ -> Error(Nil)
+        }
+      })
+  }
 
   let types =
     module.custom_types
@@ -139,7 +95,7 @@ fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
       ) = def
       case publicity {
         Public ->
-          case has_internal(attributes) {
+          case has_internal(attributes) == internal {
             True ->
               Ok(PubDefinition(name: name, kind: PubCustomType, location: location))
             False -> Error(Nil)
@@ -157,7 +113,7 @@ fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
       ) = def
       case publicity {
         Public ->
-          case has_internal(attributes) {
+          case has_internal(attributes) == internal {
             True ->
               Ok(PubDefinition(name: name, kind: PubTypeAlias, location: location))
             False -> Error(Nil)
@@ -166,7 +122,7 @@ fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
       }
     })
 
-  list.flatten([fns, types, aliases])
+  list.flatten([fns, constants, types, aliases])
 }
 
 // --- Import resolution ---

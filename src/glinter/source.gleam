@@ -2,6 +2,18 @@ import gleam/bit_array
 import gleam/list
 import gleam/string
 
+/// Strip a prefix from a path, returning the relative portion.
+pub fn strip_prefix(path: String, prefix: String) -> String {
+  case prefix {
+    "" -> path
+    _ ->
+      case string.starts_with(path, prefix) {
+        True -> string.drop_start(path, string.length(prefix))
+        False -> path
+      }
+  }
+}
+
 /// Convert line number (1-indexed) to byte offset of the start of that line.
 pub fn line_to_byte_offset(source: String, line: Int) -> Int {
   let lines = string.split(source, "\n")

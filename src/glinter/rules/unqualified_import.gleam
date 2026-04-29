@@ -1,6 +1,6 @@
 import glance
 import gleam/list
-import gleam/string
+import glinter/helpers
 import glinter/rule
 
 pub fn rule() -> rule.Rule {
@@ -17,7 +17,7 @@ fn check_import(
   |> list.filter_map(fn(uq) {
     // Allow PascalCase constructors (Some, None, Ok, Error, etc.)
     // Only flag snake_case functions and constants
-    case is_lowercase_start(uq.name) {
+    case helpers.starts_lowercase(uq.name) {
       True ->
         Ok(rule.error(
           message: "Function '"
@@ -31,11 +31,4 @@ fn check_import(
       False -> Error(Nil)
     }
   })
-}
-
-fn is_lowercase_start(name: String) -> Bool {
-  case string.first(name) {
-    Ok(c) -> c == string.lowercase(c)
-    Error(_) -> False
-  }
 }
