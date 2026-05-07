@@ -42,6 +42,10 @@ import glinter/source
 import glinter/unused_exports
 import simplifile
 
+pub type RunResult {
+  RunResult(output: String, exit_code: Int)
+}
+
 /// Run glinter with extra rules from external packages.
 /// Use this from a review.gleam file to add project-specific rules:
 ///
@@ -62,6 +66,37 @@ import simplifile
 pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   let start_time = monotonic_time_ms()
   let args = argv.load().arguments
+  let result =
+    run_with_args_and_clock(
+      args: args,
+      extra_rules: extra_rules,
+      start_time: start_time,
+      now: monotonic_time_ms,
+    )
+  io.println(result.output)
+  halt(result.exit_code)
+}
+
+/// Run glinter for a set of CLI arguments, returning output and exit code
+/// without printing or halting.
+pub fn run_with_args(
+  args args: List(String),
+  extra_rules extra_rules: List(rule.Rule),
+) -> RunResult {
+  run_with_args_and_clock(
+    args: args,
+    extra_rules: extra_rules,
+    start_time: 0,
+    now: fn() { 0 },
+  )
+}
+
+fn run_with_args_and_clock(
+  args args: List(String),
+  extra_rules extra_rules: List(rule.Rule),
+  start_time start_time: Int,
+  now now: fn() -> Int,
+) -> RunResult {
   let #(format, project_prefix, show_stats, paths) = parse_args(args)
 
   let config_path = project_prefix <> "gleam.toml"
@@ -144,7 +179,7 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
     False -> results
   }
 
-  let elapsed_ms = monotonic_time_ms() - start_time
+  let elapsed_ms = now() - start_time
   let stats =
     reporter.Stats(
       file_count: list.length(sources),
@@ -156,13 +191,13 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
     Text -> reporter.format_text(results, sources, show_stats, stats)
     Json -> reporter.format_json(results, sources, show_stats, stats)
   }
-  io.println(output)
 
   let has_errors = list.any(results, fn(r) { r.severity == rule.Error })
-  case has_errors {
-    True -> halt(1)
-    False -> halt(0)
+  let exit_code = case has_errors {
+    True -> 1
+    False -> 0
   }
+  RunResult(output: output, exit_code: exit_code)
 }
 
 pub fn main() {
