@@ -32,7 +32,10 @@ fn glob_matches(path: String, pattern: String) -> Bool {
   do_glob_match(string.split(path, "/"), string.split(normalized_pattern, "/"))
 }
 
-fn do_glob_match(path_parts: List(String), pattern_parts: List(String)) -> Bool {
+fn do_glob_match(
+  path_parts: List(String),
+  pattern_parts: List(String),
+) -> Bool {
   case path_parts, pattern_parts {
     [], [] -> True
     _, [] -> False

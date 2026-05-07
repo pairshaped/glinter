@@ -187,10 +187,10 @@ pub fn context_threads_through_enter_exit_test() {
     |> rule.with_expression_exit_visitor(visitor: fn(expression, _span, ctx) {
       let #(depth, max_depth) = ctx
       case expression {
-        glance.Block(..) | glance.Fn(..) | glance.Case(..) -> #([], #(
-          depth - 1,
-          max_depth,
-        ))
+        glance.Block(..) | glance.Fn(..) | glance.Case(..) -> #(
+          [],
+          #(depth - 1, max_depth),
+        )
         _ -> #([], ctx)
       }
     })

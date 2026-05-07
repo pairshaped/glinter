@@ -186,6 +186,8 @@ fn count_issues(results: List(LintResult)) -> #(Int, Int) {
   let error_count =
     results |> list.filter(fn(r) { r.severity == rule.Error }) |> list.length()
   let warning_count =
-    results |> list.filter(fn(r) { r.severity == rule.Warning }) |> list.length()
+    results
+    |> list.filter(fn(r) { r.severity == rule.Warning })
+    |> list.length()
   #(error_count, warning_count)
 }

@@ -19,6 +19,12 @@ const patterns = [
 
 /// Check a single source string for FFI anti-patterns.
 /// Returns LintResults with proper byte-offset locations.
+///
+/// NOTE: Detection uses `string.contains` against line text, which may produce
+/// false positives when pattern names appear inside string literals or comments
+/// (e.g. `let s = "makeError()"` would flag). In practice, references to
+/// Gleam's internal runtime APIs are rare in normal code, so the false-positive
+/// rate is low.
 pub fn check_source(
   file_path: String,
   source: String,

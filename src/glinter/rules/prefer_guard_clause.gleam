@@ -62,7 +62,8 @@ fn is_simple(expr: glance.Expression) -> Bool {
     | glance.Variable(..)
     | glance.Tuple(..) -> True
     // Constructor calls like Ok(Nil), Error(err), Some(value)
-    glance.Call(_, glance.Variable(_, name), _) -> helpers.starts_uppercase(name)
+    glance.Call(_, glance.Variable(_, name), _) ->
+      helpers.starts_uppercase(name)
     _ -> False
   }
 }

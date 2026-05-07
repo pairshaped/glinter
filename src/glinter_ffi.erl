@@ -6,5 +6,21 @@ monotonic_time_ms() ->
 
 pmap(Fun, List) ->
     Parent = self(),
-    Pids = [spawn_link(fun() -> Parent ! {self(), Fun(Item)} end) || Item <- List],
-    [receive {Pid, Result} -> Result end || Pid <- Pids].
+    Pids = [
+        spawn_link(fun() ->
+            try
+                Result = Fun(Item),
+                Parent ! {self(), {ok, Result}}
+            catch
+                Class:Reason:Stack ->
+                    Parent ! {self(), {error, Class, Reason, Stack}}
+            end
+        end) || Item <- List
+    ],
+    [
+        receive
+            {Pid, {ok, Result}} -> Result;
+            {Pid, {error, Class, Reason, Stack}} ->
+                erlang:raise(Class, Reason, Stack)
+        end || Pid <- Pids
+    ].

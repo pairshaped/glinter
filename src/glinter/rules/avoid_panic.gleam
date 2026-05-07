@@ -32,7 +32,10 @@ fn on_function(
 ) -> #(List(rule.RuleError), Context) {
   #(
     [],
-    Context(..context, in_external_fn: helpers.has_all_external_targets(definition)),
+    Context(
+      ..context,
+      in_external_fn: helpers.has_all_external_targets(definition),
+    ),
   )
 }
 
