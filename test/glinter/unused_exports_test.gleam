@@ -416,6 +416,53 @@ pub fn main(u) { users.User(..u, name: \"new\") }",
   let assert True = results == []
 }
 
+pub fn custom_type_with_unqualified_constructor_import_not_flagged_test() {
+  let src_files = [
+    parse(
+      path: "src/myapp/color.gleam",
+      module_path: "myapp/color",
+      source: "pub type Color { Red Green Blue }",
+    ),
+    parse(
+      path: "src/myapp/main.gleam",
+      module_path: "myapp/main",
+      source: "import myapp/color.{Red}
+pub fn main(c) { case c { Red -> 1 _ -> 0 } }",
+    ),
+  ]
+  let results =
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: [],
+      severity: rule.Warning,
+    )
+  let assert False =
+    list.any(results, fn(result) {
+      result.message == "Public type 'Color' is never used by another module"
+    })
+}
+
+pub fn custom_type_used_in_public_interface_not_flagged_test() {
+  let src_files = [
+    parse(
+      path: "src/myapp/api.gleam",
+      module_path: "myapp/api",
+      source: "pub type User { User(id: Int) }
+pub fn find() -> User { User(1) }",
+    ),
+  ]
+  let results =
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: [],
+      severity: rule.Warning,
+    )
+  let assert False =
+    list.any(results, fn(result) {
+      result.message == "Public type 'User' is never used by another module"
+    })
+}
+
 // --- @internal annotation tests ---
 
 pub fn internal_function_not_flagged_as_unused_test() {

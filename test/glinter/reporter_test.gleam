@@ -110,6 +110,33 @@ pub fn format_json_single_result_test() {
   let assert True = string.contains(output, contain: "\"summary\"")
 }
 
+pub fn format_text_uses_non_gleam_source_for_line_numbers_test() {
+  let source_text = "// line 1\n// line 2\nlet x = value[0];"
+  let results = [
+    make_result(
+      "ffi_usage",
+      "src/bad.mjs",
+      20,
+      "Numeric property access may rely on internal Gleam data representation",
+    ),
+  ]
+  let stats = reporter.Stats(file_count: 1, line_count: 3, elapsed_ms: 4)
+  let output =
+    reporter.format_text(results, [#("src/bad.mjs", source_text)], False, stats)
+  let assert True = string.contains(output, contain: "src/bad.mjs:3:")
+}
+
+pub fn format_json_uses_non_gleam_source_for_line_numbers_test() {
+  let source_text = "// line 1\n// line 2\nlet x = value[0];"
+  let results = [
+    make_result("ffi_usage", "src/bad.mjs", 20, "Numeric property access"),
+  ]
+  let stats = reporter.Stats(file_count: 1, line_count: 3, elapsed_ms: 4)
+  let output =
+    reporter.format_json(results, [#("src/bad.mjs", source_text)], False, stats)
+  let assert True = string.contains(output, contain: "\"line\":3")
+}
+
 pub fn format_json_with_stats_test() {
   let results = [
     make_result("echo", "src/app.gleam", 0, "Remove echo"),
