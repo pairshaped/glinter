@@ -19,7 +19,12 @@ pub type PubKind {
 }
 
 pub type PubDefinition {
-  PubDefinition(name: String, kind: PubKind, location: glance.Span)
+  PubDefinition(
+    name: String,
+    kind: PubKind,
+    location: glance.Span,
+    constructors: List(String),
+  )
 }
 
 pub type ImportResolution {
@@ -62,7 +67,14 @@ fn collect_pub_defs_filtered(
         Public, _ ->
           case has_internal(attributes) == internal {
             True ->
-              Ok(PubDefinition(name: name, kind: PubFunction, location: location))
+              Ok(
+                PubDefinition(
+                  name: name,
+                  kind: PubFunction,
+                  location: location,
+                  constructors: [],
+                ),
+              )
             False -> Error(Nil)
           }
         _, _ -> Error(Nil)
@@ -80,7 +92,14 @@ fn collect_pub_defs_filtered(
         ) = def
         case publicity {
           Public ->
-            Ok(PubDefinition(name: name, kind: PubConstant, location: location))
+            Ok(
+              PubDefinition(
+                name: name,
+                kind: PubConstant,
+                location: location,
+                constructors: [],
+              ),
+            )
           _ -> Error(Nil)
         }
       })
@@ -91,15 +110,28 @@ fn collect_pub_defs_filtered(
     |> list.filter_map(fn(def) {
       let Definition(
         attributes,
-        CustomType(name: name, publicity: publicity, location: location, ..),
+        CustomType(
+          name: name,
+          publicity: publicity,
+          location: location,
+          variants: variants,
+          ..,
+        ),
       ) = def
       case publicity {
-        Public ->
+        Public -> {
+          let constructor_names = list.map(variants, fn(v) { v.name })
           case has_internal(attributes) == internal {
             True ->
-              Ok(PubDefinition(name: name, kind: PubCustomType, location: location))
+              Ok(PubDefinition(
+                name: name,
+                kind: PubCustomType,
+                location: location,
+                constructors: constructor_names,
+              ))
             False -> Error(Nil)
           }
+        }
         _ -> Error(Nil)
       }
     })
@@ -115,7 +147,14 @@ fn collect_pub_defs_filtered(
         Public ->
           case has_internal(attributes) == internal {
             True ->
-              Ok(PubDefinition(name: name, kind: PubTypeAlias, location: location))
+              Ok(
+                PubDefinition(
+                  name: name,
+                  kind: PubTypeAlias,
+                  location: location,
+                  constructors: [],
+                ),
+              )
             False -> Error(Nil)
           }
         _ -> Error(Nil)
@@ -164,21 +203,32 @@ pub fn is_member_used_in(
   module_path: String,
   member_name: String,
   member_kind: PubKind,
+  constructors: List(String),
 ) -> Bool {
   let resolutions = resolve_module_import(consumer, module_path)
   case resolutions {
     [] -> False
     _ -> {
+      // Build the set of names to check against. For custom types this
+      // includes constructor names so that `color.Red` counts as usage of
+      // the `Color` type.
+      let member_names = case member_kind {
+        PubCustomType -> [member_name, ..constructors]
+        _ -> [member_name]
+      }
       // Check unqualified imports first (short-circuit)
       let is_unqualified =
         list.any(resolutions, fn(r) {
           case r, member_kind {
             UnqualifiedValue(name), PubFunction
             | UnqualifiedValue(name), PubConstant
-            -> name == member_name
+            -> list.contains(member_names, name)
             UnqualifiedType(name), PubCustomType
             | UnqualifiedType(name), PubTypeAlias
-            -> name == member_name
+            -> list.contains(member_names, name)
+            // Constructors imported as unqualified values
+            UnqualifiedValue(name), PubCustomType ->
+              list.contains(member_names, name)
             _, _ -> False
           }
         })
@@ -192,7 +242,7 @@ pub fn is_member_used_in(
                 _ -> Error(Nil)
               }
             })
-          search_module_for_reference(consumer, aliases, member_name)
+          search_module_for_reference(consumer, aliases, member_names)
         }
       }
     }
@@ -202,18 +252,18 @@ pub fn is_member_used_in(
 fn search_module_for_reference(
   module: Module,
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
   list.any(module.functions, fn(def) {
     let Definition(_, func) = def
-    search_statements(func.body, aliases, member_name)
-    || search_function_types(func, aliases, member_name)
+    search_statements(func.body, aliases, member_names)
+    || search_function_types(func, aliases, member_names)
   })
   || list.any(module.constants, fn(def) {
     let Definition(_, Constant(value: value, annotation: annotation, ..)) = def
-    search_expression(value, aliases, member_name)
+    search_expression(value, aliases, member_names)
     || case annotation {
-      Some(t) -> search_type(t, aliases, member_name)
+      Some(t) -> search_type(t, aliases, member_names)
       None -> False
     }
   })
@@ -223,32 +273,32 @@ fn search_module_for_reference(
       list.any(variant.fields, fn(field) {
         case field {
           glance.LabelledVariantField(item: t, ..) ->
-            search_type(t, aliases, member_name)
+            search_type(t, aliases, member_names)
           glance.UnlabelledVariantField(item: t) ->
-            search_type(t, aliases, member_name)
+            search_type(t, aliases, member_names)
         }
       })
     })
   })
   || list.any(module.type_aliases, fn(def) {
     let Definition(_, TypeAlias(aliased: t, ..)) = def
-    search_type(t, aliases, member_name)
+    search_type(t, aliases, member_names)
   })
 }
 
 fn search_function_types(
   func: glance.Function,
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
   list.any(func.parameters, fn(param) {
     case param.type_ {
-      Some(t) -> search_type(t, aliases, member_name)
+      Some(t) -> search_type(t, aliases, member_names)
       None -> False
     }
   })
   || case func.return {
-    Some(t) -> search_type(t, aliases, member_name)
+    Some(t) -> search_type(t, aliases, member_names)
     None -> False
   }
 }
@@ -256,31 +306,31 @@ fn search_function_types(
 fn search_statements(
   stmts: List(Statement),
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
-  list.any(stmts, fn(stmt) { search_statement(stmt, aliases, member_name) })
+  list.any(stmts, fn(stmt) { search_statement(stmt, aliases, member_names) })
 }
 
 fn search_statement(
   stmt: Statement,
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
   case stmt {
-    glance.Expression(expr) -> search_expression(expr, aliases, member_name)
+    glance.Expression(expr) -> search_expression(expr, aliases, member_names)
     glance.Assignment(value: expr, annotation: annotation, pattern: pattern, ..) ->
-      search_expression(expr, aliases, member_name)
-      || search_pattern(pattern, aliases, member_name)
+      search_expression(expr, aliases, member_names)
+      || search_pattern(pattern, aliases, member_names)
       || case annotation {
-        Some(t) -> search_type(t, aliases, member_name)
+        Some(t) -> search_type(t, aliases, member_names)
         None -> False
       }
     glance.Use(function: expr, ..) ->
-      search_expression(expr, aliases, member_name)
+      search_expression(expr, aliases, member_names)
     glance.Assert(expression: expr, message: message, ..) ->
-      search_expression(expr, aliases, member_name)
+      search_expression(expr, aliases, member_names)
       || case message {
-        Some(m) -> search_expression(m, aliases, member_name)
+        Some(m) -> search_expression(m, aliases, member_names)
         None -> False
       }
   }
@@ -289,106 +339,110 @@ fn search_statement(
 fn search_expression(
   expr: Expression,
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
   case expr {
     // Qualified access: module.member
     glance.FieldAccess(_, container, label) ->
       case container {
         glance.Variable(_, module_name) ->
-          label == member_name && list.contains(aliases, module_name)
+          list.contains(member_names, label)
+          && list.contains(aliases, module_name)
         _ -> False
       }
-      || search_expression(container, aliases, member_name)
+      || search_expression(container, aliases, member_names)
 
     // Record update: module.Constructor(..record, field: value)
     glance.RecordUpdate(_, Some(module_name), constructor, record, fields) ->
-      { constructor == member_name && list.contains(aliases, module_name) }
-      || search_expression(record, aliases, member_name)
+      {
+        list.contains(member_names, constructor)
+        && list.contains(aliases, module_name)
+      }
+      || search_expression(record, aliases, member_names)
       || list.any(fields, fn(field) {
         case field.item {
-          Some(e) -> search_expression(e, aliases, member_name)
+          Some(e) -> search_expression(e, aliases, member_names)
           None -> False
         }
       })
 
     // Recurse into children
     glance.Call(_, function, arguments) ->
-      search_expression(function, aliases, member_name)
+      search_expression(function, aliases, member_names)
       || list.any(arguments, fn(field) {
         case field {
           glance.LabelledField(_, _, item) ->
-            search_expression(item, aliases, member_name)
+            search_expression(item, aliases, member_names)
           glance.UnlabelledField(item) ->
-            search_expression(item, aliases, member_name)
+            search_expression(item, aliases, member_names)
           glance.ShorthandField(_, _) -> False
         }
       })
 
-    glance.Block(_, stmts) -> search_statements(stmts, aliases, member_name)
+    glance.Block(_, stmts) -> search_statements(stmts, aliases, member_names)
 
     glance.Case(_, subjects, clauses) ->
-      list.any(subjects, fn(s) { search_expression(s, aliases, member_name) })
+      list.any(subjects, fn(s) { search_expression(s, aliases, member_names) })
       || list.any(clauses, fn(clause) {
-        search_expression(clause.body, aliases, member_name)
+        search_expression(clause.body, aliases, member_names)
         || list.any(clause.patterns, fn(pattern_list) {
           list.any(pattern_list, fn(p) {
-            search_pattern(p, aliases, member_name)
+            search_pattern(p, aliases, member_names)
           })
         })
         || case clause.guard {
-          Some(g) -> search_expression(g, aliases, member_name)
+          Some(g) -> search_expression(g, aliases, member_names)
           None -> False
         }
       })
 
-    glance.Fn(_, _, _, body) -> search_statements(body, aliases, member_name)
+    glance.Fn(_, _, _, body) -> search_statements(body, aliases, member_names)
 
     glance.Tuple(_, elements) ->
-      list.any(elements, fn(e) { search_expression(e, aliases, member_name) })
+      list.any(elements, fn(e) { search_expression(e, aliases, member_names) })
 
     glance.List(_, elements, rest) ->
-      list.any(elements, fn(e) { search_expression(e, aliases, member_name) })
+      list.any(elements, fn(e) { search_expression(e, aliases, member_names) })
       || case rest {
-        Some(r) -> search_expression(r, aliases, member_name)
+        Some(r) -> search_expression(r, aliases, member_names)
         None -> False
       }
 
     glance.BinaryOperator(_, _, left, right) ->
-      search_expression(left, aliases, member_name)
-      || search_expression(right, aliases, member_name)
+      search_expression(left, aliases, member_names)
+      || search_expression(right, aliases, member_names)
 
     glance.NegateInt(_, inner) | glance.NegateBool(_, inner) ->
-      search_expression(inner, aliases, member_name)
+      search_expression(inner, aliases, member_names)
 
     glance.Echo(_, Some(inner), _) ->
-      search_expression(inner, aliases, member_name)
+      search_expression(inner, aliases, member_names)
 
     glance.Panic(_, Some(inner)) | glance.Todo(_, Some(inner)) ->
-      search_expression(inner, aliases, member_name)
+      search_expression(inner, aliases, member_names)
 
     glance.TupleIndex(_, tuple, _) ->
-      search_expression(tuple, aliases, member_name)
+      search_expression(tuple, aliases, member_names)
 
     glance.FnCapture(_, _, function, args_before, args_after) ->
-      search_expression(function, aliases, member_name)
+      search_expression(function, aliases, member_names)
       || list.any(args_before, fn(field) {
-        search_field_expr(field, aliases, member_name)
+        search_field_expr(field, aliases, member_names)
       })
       || list.any(args_after, fn(field) {
-        search_field_expr(field, aliases, member_name)
+        search_field_expr(field, aliases, member_names)
       })
 
     glance.BitString(_, segments) ->
       list.any(segments, fn(seg) {
-        search_expression(seg.0, aliases, member_name)
+        search_expression(seg.0, aliases, member_names)
       })
 
     glance.RecordUpdate(_, None, _, record, fields) ->
-      search_expression(record, aliases, member_name)
+      search_expression(record, aliases, member_names)
       || list.any(fields, fn(field) {
         case field.item {
-          Some(e) -> search_expression(e, aliases, member_name)
+          Some(e) -> search_expression(e, aliases, member_names)
           None -> False
         }
       })
@@ -407,13 +461,13 @@ fn search_expression(
 fn search_field_expr(
   field: glance.Field(Expression),
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
   case field {
     glance.LabelledField(_, _, item) ->
-      search_expression(item, aliases, member_name)
+      search_expression(item, aliases, member_names)
     glance.UnlabelledField(item) ->
-      search_expression(item, aliases, member_name)
+      search_expression(item, aliases, member_names)
     glance.ShorthandField(_, _) -> False
   }
 }
@@ -421,17 +475,20 @@ fn search_field_expr(
 fn search_pattern(
   pattern: Pattern,
   aliases: List(String),
-  member_name: String,
+  member_names: List(String),
 ) -> Bool {
   case pattern {
     glance.PatternVariant(_, Some(module_name), constructor, arguments, _) ->
-      { constructor == member_name && list.contains(aliases, module_name) }
+      {
+        list.contains(member_names, constructor)
+        && list.contains(aliases, module_name)
+      }
       || list.any(arguments, fn(field) {
         case field {
           glance.LabelledField(_, _, item) ->
-            search_pattern(item, aliases, member_name)
+            search_pattern(item, aliases, member_names)
           glance.UnlabelledField(item) ->
-            search_pattern(item, aliases, member_name)
+            search_pattern(item, aliases, member_names)
           glance.ShorthandField(_, _) -> False
         }
       })
@@ -440,28 +497,30 @@ fn search_pattern(
       list.any(arguments, fn(field) {
         case field {
           glance.LabelledField(_, _, item) ->
-            search_pattern(item, aliases, member_name)
+            search_pattern(item, aliases, member_names)
           glance.UnlabelledField(item) ->
-            search_pattern(item, aliases, member_name)
+            search_pattern(item, aliases, member_names)
           glance.ShorthandField(_, _) -> False
         }
       })
 
     glance.PatternTuple(_, elements) ->
-      list.any(elements, fn(p) { search_pattern(p, aliases, member_name) })
+      list.any(elements, fn(p) { search_pattern(p, aliases, member_names) })
 
     glance.PatternList(_, elements, tail) ->
-      list.any(elements, fn(p) { search_pattern(p, aliases, member_name) })
+      list.any(elements, fn(p) { search_pattern(p, aliases, member_names) })
       || case tail {
-        Some(t) -> search_pattern(t, aliases, member_name)
+        Some(t) -> search_pattern(t, aliases, member_names)
         None -> False
       }
 
     glance.PatternAssignment(_, inner, _) ->
-      search_pattern(inner, aliases, member_name)
+      search_pattern(inner, aliases, member_names)
 
     glance.PatternBitString(_, segments) ->
-      list.any(segments, fn(seg) { search_pattern(seg.0, aliases, member_name) })
+      list.any(segments, fn(seg) {
+        search_pattern(seg.0, aliases, member_names)
+      })
 
     // Leaf patterns
     glance.PatternInt(_, _)
@@ -473,21 +532,27 @@ fn search_pattern(
   }
 }
 
-fn search_type(type_: Type, aliases: List(String), member_name: String) -> Bool {
+fn search_type(
+  type_: Type,
+  aliases: List(String),
+  member_names: List(String),
+) -> Bool {
   case type_ {
     glance.NamedType(_, name, Some(module_name), parameters) ->
-      { name == member_name && list.contains(aliases, module_name) }
-      || list.any(parameters, fn(p) { search_type(p, aliases, member_name) })
+      {
+        list.contains(member_names, name) && list.contains(aliases, module_name)
+      }
+      || list.any(parameters, fn(p) { search_type(p, aliases, member_names) })
 
     glance.NamedType(_, _, None, parameters) ->
-      list.any(parameters, fn(p) { search_type(p, aliases, member_name) })
+      list.any(parameters, fn(p) { search_type(p, aliases, member_names) })
 
     glance.TupleType(_, elements) ->
-      list.any(elements, fn(t) { search_type(t, aliases, member_name) })
+      list.any(elements, fn(t) { search_type(t, aliases, member_names) })
 
     glance.FunctionType(_, parameters, return) ->
-      list.any(parameters, fn(t) { search_type(t, aliases, member_name) })
-      || search_type(return, aliases, member_name)
+      list.any(parameters, fn(t) { search_type(t, aliases, member_names) })
+      || search_type(return, aliases, member_names)
 
     glance.VariableType(_, _) | glance.HoleType(_, _) -> False
   }
@@ -498,7 +563,10 @@ fn search_type(type_: Type, aliases: List(String), member_name: String) -> Bool 
 /// A pub type that appears in the signature of a pub function or as a field
 /// in another pub type in the same module MUST be public — flagging it as
 /// "unused" is a false positive.
-fn is_type_required_by_pub_interface(module: Module, type_name: String) -> Bool {
+fn is_type_required_by_pub_interface(
+  module: Module,
+  type_name: String,
+) -> Bool {
   // Check pub function signatures
   list.any(module.functions, fn(def) {
     let Definition(_, func) = def
@@ -593,6 +661,7 @@ pub fn check_unused_exports(
               module_path,
               pub_def.name,
               pub_def.kind,
+              pub_def.constructors,
             )
           })
         case is_used {
@@ -623,6 +692,7 @@ pub fn check_unused_exports(
               module_path,
               pub_def.name,
               pub_def.kind,
+              pub_def.constructors,
             )
           })
         case is_used {
@@ -654,4 +724,3 @@ fn kind_label(kind: PubKind) -> String {
     PubTypeAlias -> "Public type alias"
   }
 }
-

@@ -59,6 +59,7 @@ pub fn collects_pub_types_test() {
   let assert [def] = defs
   let assert True = def.kind == PubCustomType
   let assert True = def.name == "Color"
+  let assert True = def.constructors == ["Red", "Green", "Blue"]
 }
 
 pub fn collects_pub_type_aliases_test() {
@@ -127,6 +128,7 @@ pub fn detects_qualified_function_call_test() {
       "myapp/users",
       "create",
       PubFunction,
+      [],
     )
   let assert True = result
 }
@@ -143,6 +145,7 @@ pub fn detects_qualified_constant_access_test() {
       "myapp/config",
       "timeout",
       PubConstant,
+      [],
     )
   let assert True = result
 }
@@ -159,6 +162,7 @@ pub fn detects_qualified_type_in_annotation_test() {
       "myapp/users",
       "User",
       PubCustomType,
+      [],
     )
   let assert True = result
 }
@@ -175,6 +179,7 @@ pub fn detects_qualified_constructor_in_pattern_test() {
       "myapp/color",
       "Red",
       PubCustomType,
+      [],
     )
   let assert True = result
 }
@@ -187,6 +192,7 @@ pub fn detects_unqualified_import_as_used_test() {
       "myapp/users",
       "create",
       PubFunction,
+      [],
     )
   let assert True = result
 }
@@ -199,6 +205,7 @@ pub fn detects_unqualified_type_import_as_used_test() {
       "myapp/users",
       "User",
       PubCustomType,
+      [],
     )
   let assert True = result
 }
@@ -215,6 +222,7 @@ pub fn detects_aliased_module_access_test() {
       "myapp/users",
       "create",
       PubFunction,
+      [],
     )
   let assert True = result
 }
@@ -231,6 +239,7 @@ pub fn returns_false_when_not_used_test() {
       "myapp/users",
       "create",
       PubFunction,
+      [],
     )
   let assert False = result
 }
@@ -243,6 +252,7 @@ pub fn returns_false_when_not_imported_test() {
       "myapp/users",
       "create",
       PubFunction,
+      [],
     )
   let assert False = result
 }
@@ -259,6 +269,7 @@ pub fn detects_record_update_test() {
       "myapp/users",
       "User",
       PubCustomType,
+      [],
     )
   let assert True = result
 }
@@ -353,6 +364,58 @@ pub fn used_only_in_test_not_flagged_test() {
   let assert True = results == []
 }
 
+pub fn custom_type_with_constructor_only_usage_not_flagged_test() {
+  // A pub custom type whose constructors (but not the type name itself) are
+  // used in another module should NOT be flagged as unused.
+  let src_files = [
+    parse(
+      path: "src/myapp/color.gleam",
+      module_path: "myapp/color",
+      source: "pub type Color { Red Green Blue }",
+    ),
+    parse(
+      path: "src/myapp/main.gleam",
+      module_path: "myapp/main",
+      source: "import myapp/color
+pub fn main(c) { case c { color.Red -> 1 _ -> 0 } }",
+    ),
+  ]
+  let test_files = []
+  let results =
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: test_files,
+      severity: rule.Warning,
+    )
+  let assert True = results == []
+}
+
+pub fn custom_type_with_record_constructor_usage_not_flagged_test() {
+  // A pub custom type used via record construction in another module should
+  // NOT be flagged as unused.
+  let src_files = [
+    parse(
+      path: "src/myapp/users.gleam",
+      module_path: "myapp/users",
+      source: "pub type User { User(name: String) }",
+    ),
+    parse(
+      path: "src/myapp/main.gleam",
+      module_path: "myapp/main",
+      source: "import myapp/users
+pub fn main(u) { users.User(..u, name: \"new\") }",
+    ),
+  ]
+  let test_files = []
+  let results =
+    unused_exports.check_unused_exports(
+      parsed_src: src_files,
+      parsed_test: test_files,
+      severity: rule.Warning,
+    )
+  let assert True = results == []
+}
+
 // --- @internal annotation tests ---
 
 pub fn internal_function_not_flagged_as_unused_test() {
@@ -363,8 +426,7 @@ pub fn internal_function_not_flagged_as_unused_test() {
     parse(
       path: "src/myapp/users.gleam",
       module_path: "myapp/users",
-      source:
-        "@internal
+      source: "@internal
 pub fn helper() { Nil }",
     ),
   ]
@@ -385,15 +447,13 @@ pub fn internal_function_used_externally_flagged_as_misuse_test() {
     parse(
       path: "src/myapp/users.gleam",
       module_path: "myapp/users",
-      source:
-        "@internal
+      source: "@internal
 pub fn helper() { Nil }",
     ),
     parse(
       path: "src/myapp/main.gleam",
       module_path: "myapp/main",
-      source:
-        "import myapp/users
+      source: "import myapp/users
 pub fn main() { users.helper() }",
     ),
   ]
@@ -419,8 +479,7 @@ pub fn internal_function_not_used_not_flagged_as_misuse_test() {
     parse(
       path: "src/myapp/users.gleam",
       module_path: "myapp/users",
-      source:
-        "@internal
+      source: "@internal
 pub fn helper() { Nil }",
     ),
     parse(
@@ -451,8 +510,7 @@ pub fn regular_pub_fn_still_flagged_when_unused_test() {
     parse(
       path: "src/myapp/main.gleam",
       module_path: "myapp/main",
-      source:
-        "import myapp/users
+      source: "import myapp/users
 pub fn main() { users.used_one() }",
     ),
   ]
@@ -466,8 +524,7 @@ pub fn main() { users.used_one() }",
   let assert True = list.length(results) == 1
   let assert [result] = results
   let assert True =
-    result.message
-    == "Public function 'helper' is never used by another module"
+    result.message == "Public function 'helper' is never used by another module"
 }
 
 pub fn internal_function_main_still_excluded_test() {
@@ -476,8 +533,7 @@ pub fn internal_function_main_still_excluded_test() {
     parse(
       path: "src/myapp/app.gleam",
       module_path: "myapp/app",
-      source:
-        "@internal
+      source: "@internal
 pub fn main() { Nil }",
     ),
   ]
@@ -497,8 +553,7 @@ pub fn private_function_with_internal_flagged_test() {
     parse(
       path: "src/myapp/users.gleam",
       module_path: "myapp/users",
-      source:
-        "@internal
+      source: "@internal
 fn helper() { Nil }",
     ),
   ]
@@ -518,8 +573,7 @@ pub fn private_type_with_internal_flagged_test() {
     parse(
       path: "src/myapp/users.gleam",
       module_path: "myapp/users",
-      source:
-        "@internal
+      source: "@internal
 type Helper { X }",
     ),
   ]

@@ -125,9 +125,12 @@ pub fn run(extra_rules extra_rules: List(rule.Rule)) -> Nil {
   let results = list.append(per_file_results, unused_export_results)
 
   // Cross-file: FFI usage detection (special-cased — scans .mjs files,
-  // not Gleam AST)
-  let ffi_results = run_ffi_usage(effective_paths, project_prefix, cfg)
+  // not Gleam AST). Returns results and .mjs source texts needed by the
+  // reporter to translate byte offsets back to line numbers.
+  let #(ffi_results, ffi_sources) =
+    run_ffi_usage(effective_paths, project_prefix, cfg)
   let results = list.append(results, ffi_results)
+  let sources = list.append(sources, ffi_sources)
 
   // Promote warnings to errors if configured
   let results = case cfg.warnings_as_errors {
@@ -396,21 +399,24 @@ fn run_ffi_usage(
   effective_paths: List(String),
   project_prefix: String,
   cfg: config.Config,
-) -> List(rule.LintResult) {
-  let severity =
-    config.resolve_severity(cfg, "ffi_usage", fn() { Error(Nil) })
+) -> #(List(rule.LintResult), List(#(String, String))) {
+  let severity = config.resolve_severity(cfg, "ffi_usage", fn() { Error(Nil) })
 
   case severity {
-    Error(_) -> []
+    Error(_) -> #([], [])
     Ok(sev) -> {
       let dirs =
         effective_paths
         |> list.map(fn(p) { source.strip_prefix(p, project_prefix) })
-      ffi_usage.check_ffi_files(dirs, project_prefix)
-      |> list.map(fn(r) { rule.LintResult(..r, severity: sev) })
-      |> list.filter(fn(r) {
-        !ignore.is_rule_ignored(r.file, "ffi_usage", cfg.ignore)
-      })
+      let #(raw_results, raw_sources) =
+        ffi_usage.check_ffi_files(dirs, project_prefix)
+      let results =
+        raw_results
+        |> list.map(fn(r) { rule.LintResult(..r, severity: sev) })
+        |> list.filter(fn(r) {
+          !ignore.is_rule_ignored(r.file, "ffi_usage", cfg.ignore)
+        })
+      #(results, raw_sources)
     }
   }
 }

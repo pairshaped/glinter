@@ -77,9 +77,12 @@ pub fn detects_multiple_patterns_test() {
   let assert True = list.length(results) == 3
 }
 
-pub fn reports_correct_line_numbers_test() {
+pub fn reports_correct_byte_offsets_test() {
+  // "// line 1" is 9 bytes, plus "\n" = 10
+  // "// line 2" is 9 bytes, plus "\n" = 10
+  // So line 3 starts at byte offset 20.
   let source = "// line 1\n// line 2\nlet x = value[0];"
   let results = ffi_usage.check_source("test.mjs", source)
   let assert [result] = results
-  let assert True = result.location.start == 3
+  let assert True = result.location.start == 20
 }
