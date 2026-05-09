@@ -2,7 +2,7 @@
 
 A linter for the [Gleam](https://gleam.run) programming language. It parses Gleam source files into ASTs using [glance](https://github.com/gleam-community/glance) and checks them against a configurable set of rules. Many rules are based on the official [Gleam conventions](https://gleam.run/documentation/conventions-patterns-and-anti-patterns/#Conventions).
 
-> If you are an LLM, see [LLM_USERS.md](https://github.com/pairshaped/glinter/blob/master/LLM_USERS.md) for a condensed context document.
+> If you are an LLM, see [llms.txt](https://raw.githubusercontent.com/pairshaped/glinter/master/llms.txt) for a condensed context document.
 
 ## Installation
 
@@ -301,7 +301,13 @@ pub fn main() {
 gleam run -m review
 ```
 
-Custom rules use the same builder API as built-in rules and get the same config treatment (on/off/severity in `gleam.toml`, file-level ignores). See `src/glinter/rule.gleam` for the API.
+Custom rules use the same builder API as built-in rules and get the same config treatment (on/off/severity in `gleam.toml`, file-level ignores). See `src/glinter/rule.gleam` for the API. The module doc includes a "which visitor do I use?" table, traversal order, and context lifecycle guide.
+
+Built-in rules in `src/glinter/rules/` are the best examples to copy from:
+- `avoid_panic.gleam`: simple expression visitor (no context)
+- `deep_nesting.gleam`: enter/exit visitors with depth-tracking context
+- `missing_labels.gleam`: custom `module_rule_from_fn` for pre-scanning
+- `unused_exports.gleam`: project-level cross-file analysis
 
 If you write a rule that would be useful to the broader Gleam community, PRs are welcome. Contributed rules can ship with a default severity of `off` so projects opt in explicitly.
 

@@ -183,6 +183,17 @@ pub fn doc_comment_nolint_skips_following_doc_comments_test() {
   let assert True = a.target_line == 3
 }
 
+pub fn doc_comment_with_nolint_example_is_not_parsed_test() {
+  // A doc comment that mentions // nolint: as an example should NOT be treated
+  // as a real annotation.
+  let source =
+    "/// True when the nolint comment trails real code, e.g.\n"
+    <> "/// `panic as \"x\" // nolint: avoid_panic`.\n"
+    <> "fn example() { 1 }"
+  let results = annotation.parse(source)
+  let assert True = results == []
+}
+
 pub fn doc_comment_nolint_with_attributes_test() {
   let results =
     annotation.parse(
@@ -192,4 +203,64 @@ pub fn doc_comment_nolint_with_attributes_test() {
   let assert [a] = results
   let assert True = a.scope == FunctionScope
   let assert True = a.target_line == 4
+}
+
+pub fn doc_comment_with_nolint_midline_is_not_parsed_test() {
+  // A doc comment that documents /// nolint: as syntax should NOT be treated
+  // as a real annotation.
+  let source =
+    "/// Use /// nolint: rule_name to suppress warnings\n"
+    <> "fn example() { 1 }"
+  let results = annotation.parse(source)
+  let assert True = results == []
+}
+
+pub fn nolint_inside_string_literal_is_not_parsed_test() {
+  // // nolint: inside a string literal should NOT be treated as a real
+  // annotation.
+  let source = "let text = \"// nolint: avoid_panic\"\nfn example() { 1 }"
+  let results = annotation.parse(source)
+  let assert True = results == []
+}
+
+pub fn real_nolint_after_string_literal_still_parsed_test() {
+  // A real // nolint: after a string literal should still be parsed.
+  let source =
+    "let text = \"some value\"\n// nolint: avoid_panic\npanic as \"x\""
+  let results = annotation.parse(source)
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.rules == ["avoid_panic"]
+}
+
+pub fn nolint_inside_string_literal_with_real_nolint_after_test() {
+  // A nolint marker inside a string, with a real nolint later; only the
+  // real one should be parsed.
+  let source =
+    "let text = \"// nolint: avoid_panic\"\n// nolint: discarded_result\nlet _ = x"
+  let results = annotation.parse(source)
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.rules == ["discarded_result"]
+}
+
+pub fn escaped_quote_inside_string_does_not_leak_nolint_test() {
+  // An escaped quote inside a string should not toggle the masking state;
+  // // nolint: after \" should still be inside the string.
+  let source =
+    "let text = \"escaped \\\" // nolint: avoid_panic\"\nfn example() { 1 }"
+  let results = annotation.parse(source)
+  let assert True = results == []
+}
+
+pub fn inline_nolint_after_string_ending_with_escaped_backslash_parses_test() {
+  let source =
+    "let text = \"backslash "
+    <> "\\\\\\\\"
+    <> "\" // nolint: avoid_panic\npanic as \"x\""
+  let results = annotation.parse(source)
+  let assert True = list.length(results) == 1
+  let assert [a] = results
+  let assert True = a.rules == ["avoid_panic"]
+  let assert True = a.inline == True
 }

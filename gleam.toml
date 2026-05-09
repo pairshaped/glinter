@@ -3,6 +3,9 @@ version = "2.17.0"
 description = "A linter for the Gleam programming language"
 licences = ["MIT"]
 repository = { type = "github", user = "pairshaped", repo = "glinter" }
+links = [
+  { title = "llms.txt", href = "https://raw.githubusercontent.com/pairshaped/glinter/master/llms.txt" },
+]
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
@@ -14,6 +17,7 @@ gleam_json = ">= 3.0.0 and < 4.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
+
 
 # glinter configuration
 # Set rules to "error", "warning", or "off"

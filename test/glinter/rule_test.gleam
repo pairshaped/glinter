@@ -303,11 +303,11 @@ pub fn project_rule_runs_across_files_test() {
     |> rule.with_final_project_evaluation(evaluator: fn(total) {
       case total > 2 {
         True -> [
-          rule.error(
+          #("", rule.error(
             message: "Too many imports across project",
             details: "",
             location: glance.Span(start: 0, end: 0),
-          ),
+          )),
         ]
         False -> []
       }
@@ -322,11 +322,12 @@ pub fn project_rule_runs_across_files_test() {
 
   let errors =
     rule.run_on_project(rule: r, files: [
-      #(module1, "file1.gleam"),
-      #(module2, "file2.gleam"),
+      #("file1.gleam", module1, "file1.gleam"),
+      #("file2.gleam", module2, "file2.gleam"),
     ])
   let assert True = list.length(errors) == 1
-  let assert [err] = errors
+  let assert [#(file, err)] = errors
+  let assert True = file == ""  // final project evaluation, no specific file
   let assert True = rule.error_message(err) == "Too many imports across project"
 }
 

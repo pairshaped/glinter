@@ -1,3 +1,82 @@
+//// Rule builder API for custom glinter rules.
+////
+//// ## Two kinds of rules
+////
+//// **Module rules** visit a single file at a time. The orchestrator runs each
+//// module rule on each file (in parallel across files). Use a module rule when
+//// your lint only needs local context: one function body, one expression, one
+//// import.
+////
+//// **Project rules** visit every file in sequence, carrying accumulated state
+//// across the project. Use a project rule when you need cross-file context:
+//// counting exports across modules, checking for duplicate definitions, etc.
+////
+//// ## Module rule builder
+////
+//// Create a schema with `new()` or `new_with_context()`, attach visitors, then
+//// call `to_module_rule()` to build a `Rule`. The builder erases the context
+//// type via closures so the orchestrator can hold a uniform `List(Rule)`.
+////
+//// ```
+//// rule.new("my_rule")
+//// |> rule.with_expression_enter_visitor(fn(expr, span, ctx) {
+////   // check expr, return errors
+////   #([], ctx)
+//// })
+//// |> rule.to_module_rule()
+//// ```
+////
+//// ## Traversal order
+////
+//// For each file, the runner visits:
+//// 1. Imports (import_visitor)
+//// 2. Each function definition (function_visitor), then its body:
+////    a. Statements (statement_visitor)
+////    b. For each statement's expression, a depth-first walk:
+////       - Enter visitor (top-down, parent before children)
+////       - Recurse into child expressions
+////       - Exit visitor (bottom-up, children before parent)
+//// 3. Final evaluation (final_evaluation)
+////
+//// ## Which visitor do I use?
+////
+//// | Use case | Visitor |
+//// |---|---|
+//// | Check every expression regardless of context | `with_simple_expression_visitor` |
+//// | Check expressions with accumulated state (e.g. nesting depth) | `with_expression_enter_visitor` + context |
+//// | Check after children are processed (e.g. collect child types) | `with_expression_exit_visitor` |
+//// | Check function signatures, return types, or parameters | `with_function_visitor` |
+//// | Check import statements (qualified/unqualified, duplicates) | `with_import_visitor` |
+//// | Check top-level statements (use, assignment, assert) | `with_statement_visitor` |
+//// | Emit errors after all traversal (e.g. "not used" warnings) | `with_final_evaluation` |
+//// | Cross-file analysis (unused exports, duplicate modules) | `new_project` + `with_module_visitor` |
+////
+//// ## Context lifecycle
+////
+//// Context is per-rule, per-file (module rules) or per-project (project rules).
+//// The context value starts from `initial()` and is threaded through every
+//// visitor call. Each visitor receives the current context and returns
+//// `#(errors, new_context)`. The final context is available in
+//// `final_evaluation` to emit deferred errors.
+////
+//// Use `new_with_context()` to seed an initial value. Use `new()` (which sets
+//// context to `Nil`) if your rule is stateless.
+////
+//// ## Simple vs. stateful visitors
+////
+//// `with_simple_*` visitors wrap a stateless callback in a stateful one that
+//// passes context through unchanged. Prefer them when you don't need context:
+//// they're less boilerplate.
+////
+//// ## Built-in rule examples
+////
+//// See the `src/glinter/rules/` directory for real examples:
+//// - `avoid_panic.gleam`: simple expression visitor (no context)
+//// - `deep_nesting.gleam`: enter/exit visitors with depth-tracking context
+//// - `unused_exports.gleam`: cross-file reference counting (standalone; see
+////   `src/glinter/unused_exports.gleam`, not built with the project rule builder)
+//// - `missing_labels.gleam`: custom `module_rule_from_fn` for pre-scanning
+////
 import glance
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -38,7 +117,7 @@ pub opaque type Rule {
   ProjectRule(
     name: String,
     default_severity: Severity,
-    run: fn(List(#(glance.Module, String))) -> List(RuleError),
+    run: fn(List(#(String, glance.Module, String))) -> List(#(String, RuleError)),
   )
 }
 
@@ -82,7 +161,9 @@ pub opaque type ProjectRuleSchema(project_context, module_context) {
     from_module_to_project: Option(
       fn(module_context, project_context) -> project_context,
     ),
-    final_project_evaluation: Option(fn(project_context) -> List(RuleError)),
+    final_project_evaluation: Option(
+      fn(project_context) -> List(#(String, RuleError)),
+    ),
   )
 }
 
@@ -171,6 +252,9 @@ pub fn new_with_context(
 
 // --- Stateful visitors ---
 
+/// Register an expression visitor called before children are traversed
+/// (top-down). Use when you need to check an expression before its children,
+/// e.g. enforcing a nesting depth limit on entry.
 pub fn with_expression_enter_visitor(
   schema schema: ModuleRuleSchema(context),
   visitor visitor: fn(glance.Expression, glance.Span, context) ->
@@ -179,6 +263,9 @@ pub fn with_expression_enter_visitor(
   ModuleRuleSchema(..schema, expression_enter_visitor: Some(visitor))
 }
 
+/// Register an expression visitor called after children are traversed
+/// (bottom-up). Use when you need information about child expressions first,
+/// e.g. collecting types of sub-expressions before checking the parent.
 pub fn with_expression_exit_visitor(
   schema schema: ModuleRuleSchema(context),
   visitor visitor: fn(glance.Expression, glance.Span, context) ->
@@ -187,6 +274,10 @@ pub fn with_expression_exit_visitor(
   ModuleRuleSchema(..schema, expression_exit_visitor: Some(visitor))
 }
 
+/// Visit every function definition (signature + body). The span covers the
+/// full definition. Use for checking return types, parameter labels, or
+/// function-level annotations. The function body is traversed separately by
+/// expression/statement visitors after this visitor runs.
 pub fn with_function_visitor(
   schema schema: ModuleRuleSchema(context),
   visitor visitor: fn(glance.Definition(glance.Function), glance.Span, context) ->
@@ -195,6 +286,9 @@ pub fn with_function_visitor(
   ModuleRuleSchema(..schema, function_visitor: Some(visitor))
 }
 
+/// Visit every import definition. Use for checking import style
+/// (qualified vs. unqualified), duplicate imports, or forbidden modules.
+/// The span is available on `glance.Definition(glance.Import)` via `.location`.
 pub fn with_import_visitor(
   schema schema: ModuleRuleSchema(context),
   visitor visitor: fn(glance.Definition(glance.Import), context) ->
@@ -203,6 +297,10 @@ pub fn with_import_visitor(
   ModuleRuleSchema(..schema, import_visitor: Some(visitor))
 }
 
+/// Visit every top-level statement in function bodies and blocks:
+/// `use`, `let`, bare expressions, and `assert`. Expression visitors fire
+/// separately for each expression within the statement. Use this when you
+/// care about the statement kind (e.g. flagging `let assert`).
 pub fn with_statement_visitor(
   schema schema: ModuleRuleSchema(context),
   visitor visitor: fn(glance.Statement, context) -> #(List(RuleError), context),
@@ -259,6 +357,9 @@ pub fn with_simple_statement_visitor(
 
 // --- Final evaluation ---
 
+/// Register a callback that runs after all traversal completes. Receives the
+/// final context so you can emit deferred errors, for example flagging
+/// variables that were collected but never used.
 pub fn with_final_evaluation(
   schema schema: ModuleRuleSchema(context),
   evaluator evaluator: fn(context) -> List(RuleError),
@@ -299,7 +400,12 @@ pub fn module_rule_from_fn(
 
 // --- Project rule builder functions ---
 
-/// Create a new project rule schema with an initial project context.
+/// Create a new project rule schema. Project rules visit every file in
+/// sequence, carrying accumulated state across modules. Use when your lint
+/// needs cross-file context (unused exports, duplicate definitions, etc.).
+///
+/// The `initial` value seeds the project context. Module-level context is
+/// derived from it via `with_module_context`.
 pub fn new_project(
   name name: String,
   initial initial: project_context,
@@ -315,6 +421,11 @@ pub fn new_project(
   )
 }
 
+/// Register a module-level visitor builder for project rules. The builder
+/// receives a fresh `ModuleRuleSchema` for each file and should attach the
+/// visitors needed per module (e.g. collecting references from each file).
+/// The orchestrator runs this visitor on every file in sequence, folding
+/// module context back into project context via `with_module_context`.
 pub fn with_module_visitor(
   schema schema: ProjectRuleSchema(pc, mc),
   builder builder: fn(ModuleRuleSchema(mc)) -> ModuleRuleSchema(mc),
@@ -322,6 +433,10 @@ pub fn with_module_visitor(
   ProjectRuleSchema(..schema, module_visitor_builder: Some(builder))
 }
 
+/// Set up context bridging between project and module levels. The first
+/// function creates a module context from the project context (called before
+/// each file). The second folds the module context back into the project
+/// context (called after each file).
 pub fn with_module_context(
   schema schema: ProjectRuleSchema(pc, mc),
   from_project_to_module from_project_to_module: fn(pc) -> mc,
@@ -336,7 +451,7 @@ pub fn with_module_context(
 
 pub fn with_final_project_evaluation(
   schema schema: ProjectRuleSchema(pc, mc),
-  evaluator evaluator: fn(pc) -> List(RuleError),
+  evaluator evaluator: fn(pc) -> List(#(String, RuleError)),
 ) -> ProjectRuleSchema(pc, mc) {
   ProjectRuleSchema(..schema, final_project_evaluation: Some(evaluator))
 }
@@ -371,11 +486,13 @@ pub fn run_on_module(
   }
 }
 
-/// Run a project rule on all files. Returns errors.
+/// Run a project rule on all files. Returns errors paired with their file path.
+/// Module-visitor errors are tagged with the file they came from; final
+/// evaluation errors are tagged with whatever path the callback provides.
 pub fn run_on_project(
   rule rule: Rule,
-  files files: List(#(glance.Module, String)),
-) -> List(RuleError) {
+  files files: List(#(String, glance.Module, String)),
+) -> List(#(String, RuleError)) {
   case rule {
     ProjectRule(run: run, ..) -> run(files)
     ModuleRule(..) -> []
@@ -398,26 +515,22 @@ fn run_module_schema(
 
 fn run_project_schema(
   schema: ProjectRuleSchema(pc, mc),
-  files: List(#(glance.Module, String)),
-) -> List(RuleError) {
+  files: List(#(String, glance.Module, String)),
+) -> List(#(String, RuleError)) {
   let project_context = schema.initial()
 
-  // Build the module rule schema if we have both a builder and context bridging
   case
     schema.module_visitor_builder,
     schema.from_project_to_module,
     schema.from_module_to_project
   {
     Some(builder), Some(to_module), Some(to_project) -> {
-      // For each file, create module context from project, run module visitors,
-      // then fold module context back into project context
       let #(module_errors, project_context) =
         list.fold(files, #([], project_context), fn(acc, file) {
           let #(errors_so_far, pc) = acc
-          let #(module, source) = file
+          let #(path, module, source) = file
           let mc = to_module(pc)
 
-          // Build a module schema with the module context
           let base_schema =
             ModuleRuleSchema(
               name: schema.name,
@@ -432,15 +545,14 @@ fn run_project_schema(
             )
           let module_schema = builder(base_schema)
 
-          // Run it and get the context back
           let #(errors, final_mc) =
             run_module_schema_with_context(module_schema, module, source)
 
           let new_pc = to_project(final_mc, pc)
-          #(list.append(errors_so_far, errors), new_pc)
+          let tagged = list.map(errors, fn(e) { #(path, e) })
+          #(list.append(errors_so_far, tagged), new_pc)
         })
 
-      // Run final project evaluation
       let final_errors = case schema.final_project_evaluation {
         None -> []
         Some(evaluator) -> evaluator(project_context)
@@ -449,7 +561,6 @@ fn run_project_schema(
       list.append(module_errors, final_errors)
     }
     _, _, _ -> {
-      // No module visitor setup -- just run final project evaluation
       case schema.final_project_evaluation {
         None -> []
         Some(evaluator) -> evaluator(project_context)

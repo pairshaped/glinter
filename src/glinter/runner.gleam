@@ -75,8 +75,8 @@ fn run_project_rules(
   let file_tuples =
     files
     |> list.map(fn(f) {
-      let #(_display_path, source_text, module) = f
-      #(module, source_text)
+      let #(display_path, source_text, module) = f
+      #(display_path, module, source_text)
     })
 
   rules
@@ -85,11 +85,8 @@ fn run_project_rules(
     let severity = rule.default_severity(r)
 
     rule.run_on_project(rule: r, files: file_tuples)
-    |> list.filter_map(fn(err) {
-      // Project rule errors don't have a file path in the error itself.
-      // Use empty string as default -- project rules that need file paths
-      // should encode them in the error message or details.
-      let file = ""
+    |> list.filter_map(fn(tagged) {
+      let #(file, err) = tagged
       case ignore.is_rule_ignored(file, rule_name, config.ignore) {
         True -> Error(Nil)
         False ->

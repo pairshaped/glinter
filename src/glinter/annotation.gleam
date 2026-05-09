@@ -1,3 +1,4 @@
+import gleam/bool
 import gleam/list
 import gleam/string
 
@@ -56,15 +57,25 @@ fn parse_lines(
   }
 }
 
-/// Extract rule names from a line containing // nolint: or /// nolint:
+/// Extract rule names from a line containing // nolint: or /// nolint:.
+/// String literals are masked before searching so that nolint markers inside
+/// strings (e.g. `let text = "// nolint: avoid_panic"`) are not matched.
 fn extract_nolint(line: String) -> Result(List(String), Nil) {
-  // Try /// nolint: first (doc comment), then // nolint: (regular comment)
-  let after_prefix = case string.split(line, "/// nolint:") {
-    [_, after, ..] -> Ok(after)
-    _ ->
-      case string.split(line, "// nolint:") {
-        [_, after, ..] -> Ok(after)
+  let masked = mask_strings(line)
+  let after_prefix = case string.split(masked, "/// nolint:") {
+    [prefix, after, ..] ->
+      case string.trim(prefix) {
+        "" -> Ok(after)
         _ -> Error(Nil)
+      }
+    _ ->
+      case is_doc_comment(line) {
+        True -> Error(Nil)
+        False ->
+          case string.split(masked, "// nolint:") {
+            [_, after, ..] -> Ok(after)
+            _ -> Error(Nil)
+          }
       }
   }
   case after_prefix {
@@ -94,14 +105,112 @@ pub fn is_inline(line: String) -> Bool {
 }
 
 fn before_nolint(line: String) -> String {
-  case string.split(line, "/// nolint:") {
-    [prefix, _, ..] -> string.trim(prefix)
-    _ ->
-      case string.split(line, "// nolint:") {
-        [prefix, _, ..] -> string.trim(prefix)
+  let masked = mask_strings(line)
+  case string.split(masked, "/// nolint:") {
+    [prefix, _, ..] ->
+      case string.trim(prefix) {
+        "" -> ""
         _ -> ""
+        // "nolint:" was not at the doc-comment start
+      }
+    _ ->
+      case is_doc_comment(line) {
+        True -> ""
+        False ->
+          case string.split(masked, "// nolint:") {
+            [prefix, _, ..] -> string.trim(prefix)
+            _ -> ""
+          }
       }
   }
+}
+
+/// Replace string literal contents with spaces so nolint markers inside
+/// strings aren't matched by substring search. Quotes toggle string state
+/// only when they are not escaped by an odd number of preceding backslashes.
+fn mask_strings(line: String) -> String {
+  let graphemes = string.to_graphemes(line)
+  mask_string_graphemes(
+    graphemes: graphemes,
+    in_string: False,
+    backslashes: 0,
+    acc: [],
+  )
+}
+
+fn mask_string_graphemes(
+  graphemes graphemes: List(String),
+  in_string in_string: Bool,
+  backslashes backslashes: Int,
+  acc acc: List(String),
+) -> String {
+  case graphemes {
+    [] -> acc |> list.reverse() |> string.concat()
+    [grapheme, ..rest] -> {
+      let #(next_in_string, next_backslashes, replacement) =
+        mask_grapheme(
+          grapheme: grapheme,
+          in_string: in_string,
+          backslashes: backslashes,
+        )
+      mask_string_graphemes(
+        graphemes: rest,
+        in_string: next_in_string,
+        backslashes: next_backslashes,
+        acc: [replacement, ..acc],
+      )
+    }
+  }
+}
+
+fn mask_grapheme(
+  grapheme grapheme: String,
+  in_string in_string: Bool,
+  backslashes backslashes: Int,
+) -> #(Bool, Int, String) {
+  case grapheme {
+    "\\" -> #(
+      in_string,
+      backslashes + 1,
+      mask_replacement(grapheme: grapheme, in_string: in_string),
+    )
+    "\"" ->
+      mask_quote(
+        in_string: in_string,
+        escaped: backslashes % 2 == 1,
+        grapheme: grapheme,
+      )
+    _ -> #(
+      in_string,
+      0,
+      mask_replacement(grapheme: grapheme, in_string: in_string),
+    )
+  }
+}
+
+fn mask_quote(
+  in_string in_string: Bool,
+  escaped escaped: Bool,
+  grapheme grapheme: String,
+) -> #(Bool, Int, String) {
+  case in_string, escaped {
+    True, True -> #(True, 0, " ")
+    _, False -> #(!in_string, 0, grapheme)
+    False, True -> #(False, 0, grapheme)
+  }
+}
+
+fn mask_replacement(
+  grapheme grapheme: String,
+  in_string in_string: Bool,
+) -> String {
+  use <- bool.guard(when: in_string, return: " ")
+  grapheme
+}
+
+fn is_doc_comment(line: String) -> Bool {
+  let trimmed = string.trim(line)
+  string.starts_with(trimmed, "///") && !string.starts_with(trimmed, "////")
 }
 
 /// Determine scope based on whether the line is inline and what follows it.
