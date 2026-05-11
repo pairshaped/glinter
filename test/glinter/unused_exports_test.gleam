@@ -305,6 +305,7 @@ pub fn detects_unused_pub_function_test() {
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = list.length(results) == 1
@@ -334,6 +335,7 @@ pub fn all_exports_used_test() {
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -359,6 +361,7 @@ pub fn used_only_in_test_not_flagged_test() {
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -385,6 +388,7 @@ pub fn main(c) { case c { color.Red -> 1 _ -> 0 } }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -411,6 +415,7 @@ pub fn main(u) { users.User(..u, name: \"new\") }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -434,6 +439,7 @@ pub fn main(c) { case c { Red -> 1 _ -> 0 } }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: [],
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert False =
@@ -455,6 +461,7 @@ pub fn find() -> User { User(1) }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: [],
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert False =
@@ -482,6 +489,7 @@ pub fn helper() { Nil }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -509,6 +517,7 @@ pub fn main() { users.helper() }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = list.length(results) == 1
@@ -540,6 +549,7 @@ pub fn helper() { Nil }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -566,6 +576,7 @@ pub fn main() { users.used_one() }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = list.length(results) == 1
@@ -589,6 +600,7 @@ pub fn main() { Nil }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -609,6 +621,7 @@ fn helper() { Nil }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []
@@ -629,6 +642,7 @@ type Helper { X }",
     unused_exports.check_unused_exports(
       parsed_src: src_files,
       parsed_test: test_files,
+      parsed_extra_consumers: [],
       severity: rule.Warning,
     )
   let assert True = results == []

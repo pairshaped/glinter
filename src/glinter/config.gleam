@@ -15,6 +15,7 @@ pub type Config {
     ignore: Dict(String, List(String)),
     include: List(String),
     exclude: List(String),
+    scan_paths: List(String),
     stats: Bool,
     warnings_as_errors: Bool,
   )
@@ -26,6 +27,7 @@ pub fn default() -> Config {
     ignore: dict.new(),
     include: [],
     exclude: [],
+    scan_paths: [],
     stats: False,
     warnings_as_errors: False,
   )
@@ -39,6 +41,7 @@ pub fn parse(toml_string: String) -> Result(Config, String) {
       let ignore = parse_ignore(parsed)
       let include = parse_string_array(parsed, "include")
       let exclude = parse_string_array(parsed, "exclude")
+      let scan_paths = parse_string_array(parsed, "scan_paths")
       let stats = parse_stats(parsed)
       let warnings_as_errors = parse_warnings_as_errors(parsed)
       Ok(Config(
@@ -46,6 +49,7 @@ pub fn parse(toml_string: String) -> Result(Config, String) {
         ignore: ignore,
         include: include,
         exclude: exclude,
+        scan_paths: scan_paths,
         stats: stats,
         warnings_as_errors: warnings_as_errors,
       ))

@@ -38,6 +38,7 @@ import glinter/rules/unnecessary_variable
 import glinter/rules/unqualified_import
 import glinter/rules/unwrap_used
 import glinter/runner
+import glinter/annotation
 import glinter/source
 import glinter/unused_exports
 import simplifile
@@ -115,6 +116,12 @@ fn run_with_args_and_clock(
     _ -> paths
   }
 
+  // Scan-only paths: parsed for cross-module analysis (e.g. usage detection),
+  // never reported on. Used to teach glinter about callers in generated client
+  // packages that live outside the linted source tree.
+  let scan_only_paths =
+    list.map(cfg.scan_paths, fn(p) { project_prefix <> p })
+
   // Discover files (absolute paths), then make relative for ignore matching
   // and cleaner output
   let file_paths =
@@ -122,41 +129,69 @@ fn run_with_args_and_clock(
     |> list.map(fn(f) { source.strip_prefix(f, project_prefix) })
     |> list.filter(fn(f) { !ignore.is_file_excluded(f, cfg.exclude) })
 
-  // Read and parse files, collecting sources for reporter and cross-module passes
+  let scan_only_file_paths =
+    discover_files(scan_only_paths)
+    |> list.map(fn(f) { source.strip_prefix(f, project_prefix) })
+
+  let parse_file = fn(
+    acc: #(List(#(String, String, glance.Module)), List(#(String, String))),
+    file_path: String,
+  ) {
+    let read_path = project_prefix <> file_path
+    case simplifile.read(read_path) {
+      Error(_) -> {
+        io.println_error("Error: Could not read " <> read_path)
+        acc
+      }
+      Ok(source) ->
+        case glance.module(source) {
+          Error(_) -> {
+            io.println_error("Error: Failed to parse " <> read_path)
+            acc
+          }
+          Ok(module) -> #([#(file_path, source, module), ..acc.0], [
+            #(file_path, source),
+            ..acc.1
+          ])
+        }
+    }
+  }
+
+  // Read and parse lintable files
   let #(parsed_files, sources) =
     file_paths
-    |> list.fold(#([], []), fn(acc, file_path) {
-      let read_path = project_prefix <> file_path
-      case simplifile.read(read_path) {
-        Error(_) -> {
-          io.println_error("Error: Could not read " <> read_path)
-          acc
-        }
-        Ok(source) ->
-          case glance.module(source) {
-            Error(_) -> {
-              io.println_error("Error: Failed to parse " <> read_path)
-              acc
-            }
-            Ok(module) -> #([#(file_path, source, module), ..acc.0], [
-              #(file_path, source),
-              ..acc.1
-            ])
-          }
-      }
-    })
+    |> list.fold(#([], []), parse_file)
   let parsed_files = list.reverse(parsed_files)
   let sources = list.reverse(sources)
+
+  // Read and parse scan-only files (for cross-module usage detection)
+  let #(scan_only_parsed, _) =
+    scan_only_file_paths
+    |> list.fold(#([], []), parse_file)
+  let scan_only_parsed = list.reverse(scan_only_parsed)
 
   let all_rules = apply_config(module_rules, cfg)
   let per_file_results =
     runner.run(rules: all_rules, files: parsed_files, config: cfg)
 
   // Cross-module: unused exports detection (special-cased — needs file paths
-  // and src/test distinction that the project rule API doesn't yet provide)
+  // and src/test distinction that the project rule API doesn't yet provide).
+  // Scan-only modules participate as consumers so their imports are visible,
+  // but no results are reported on them.
+  let unfiltered_unused_export_results =
+    run_unused_exports(parsed_files, scan_only_parsed, project_prefix, cfg)
   let unused_export_results =
-    run_unused_exports(parsed_files, project_prefix, cfg)
-    |> apply_nolint_filter(parsed_files)
+    apply_nolint_filter(unfiltered_unused_export_results, parsed_files)
+  // The per-file runner emits nolint_unused for annotations targeting
+  // cross-file rules (like unused_exports) because it doesn't see those
+  // results. Reconcile by removing nolint_unused warnings whose annotations
+  // actually suppressed a cross-file result.
+  let per_file_results =
+    reconcile_cross_file_nolint(
+      per_file_results,
+      unfiltered_unused_export_results,
+      parsed_files,
+    )
   let results = list.append(per_file_results, unused_export_results)
 
   // Cross-file: FFI usage detection (special-cased — scans .mjs files,
@@ -376,9 +411,84 @@ fn apply_nolint_filter(
   })
 }
 
+/// Remove false nolint_unused warnings for annotations that suppressed
+/// cross-file results. The per-file runner can't see cross-file results when
+/// it emits nolint_unused, so we reconcile after the fact.
+fn reconcile_cross_file_nolint(
+  per_file_results: List(rule.LintResult),
+  cross_file_results: List(rule.LintResult),
+  parsed_files: List(#(String, String, glance.Module)),
+) -> List(rule.LintResult) {
+  list.filter(per_file_results, fn(r) {
+    case r.rule == "nolint_unused" {
+      False -> True
+      True ->
+        case list.find(parsed_files, fn(f) { f.0 == r.file }) {
+          Error(_) -> True
+          Ok(#(_, source_text, module)) -> {
+            let cross_file_for_file =
+              list.filter(cross_file_results, fn(cf) { cf.file == r.file })
+            !annotation_at_location_suppresses_any(
+              source_text,
+              module,
+              r.location,
+              cross_file_for_file,
+            )
+          }
+        }
+    }
+  })
+}
+
+/// Check if the nolint annotation at the given location would suppress any of
+/// the provided results. Uses the same scope rules as the runner: line-scope
+/// annotations match the next line, function-scope annotations match any line
+/// within the function body.
+fn annotation_at_location_suppresses_any(
+  source_text: String,
+  module: glance.Module,
+  nolint_location: glance.Span,
+  results: List(rule.LintResult),
+) -> Bool {
+  let annotations = annotation.parse(source_text)
+  let nolint_line =
+    source.byte_offset_to_line(source_text, nolint_location.start)
+  case list.find(annotations, fn(ann) { ann.comment_line == nolint_line }) {
+    Error(_) -> False
+    Ok(ann) -> {
+      let function_ranges =
+        module.functions
+        |> list.map(fn(func_def) {
+          let span = func_def.definition.location
+          #(
+            source.byte_offset_to_line(source_text, span.start),
+            source.byte_offset_to_line(source_text, span.end),
+          )
+        })
+      list.any(results, fn(result) {
+        let error_line =
+          source.byte_offset_to_line(source_text, result.location.start)
+        let rule_matches = list.contains(ann.rules, result.rule)
+        let line_matches = case ann.scope {
+          annotation.LineScope -> ann.target_line == error_line
+          annotation.FunctionScope ->
+            list.any(function_ranges, fn(range) {
+              range.0 == ann.target_line
+              && error_line >= range.0
+              && error_line <= range.1
+            })
+          annotation.Stale -> False
+        }
+        rule_matches && line_matches
+      })
+    }
+  }
+}
+
 /// Run unused exports detection as a cross-module pass.
 fn run_unused_exports(
   parsed_files: List(#(String, String, glance.Module)),
+  parsed_extra_consumers: List(#(String, String, glance.Module)),
   project_prefix: String,
   cfg: config.Config,
 ) -> List(rule.LintResult) {
@@ -419,6 +529,7 @@ fn run_unused_exports(
       unused_exports.check_unused_exports(
         parsed_src: parsed_src,
         parsed_test: parsed_test,
+        parsed_extra_consumers: parsed_extra_consumers,
         severity: sev,
       )
       |> list.filter(fn(r) {

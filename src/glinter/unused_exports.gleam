@@ -630,9 +630,15 @@ fn type_mentions(type_: Type, name: String) -> Bool {
 pub fn check_unused_exports(
   parsed_src parsed_src: List(#(String, String, glance.Module)),
   parsed_test parsed_test: List(#(String, String, glance.Module)),
+  parsed_extra_consumers parsed_extra_consumers: List(
+    #(String, String, glance.Module),
+  ),
   severity severity: rule.Severity,
 ) -> List(rule.LintResult) {
-  let all_consumers = list.append(parsed_src, parsed_test)
+  let all_consumers =
+    parsed_src
+    |> list.append(parsed_test)
+    |> list.append(parsed_extra_consumers)
 
   // For each src file, collect pub definitions and check usage
   parsed_src

@@ -12,6 +12,7 @@ fn make_config() -> config.Config {
     ignore: dict.new(),
     include: ["src/"],
     exclude: [],
+    scan_paths: [],
     stats: False,
     warnings_as_errors: False,
   )
