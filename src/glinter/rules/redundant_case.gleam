@@ -13,7 +13,7 @@ fn check_expression(
   span: glance.Span,
 ) -> List(rule.RuleError) {
   case expression {
-    glance.Case(_, _, [glance.Clause(guard: None, ..)]) -> [
+    glance.Case(_, _, [glance.Clause(guard: None, patterns: [_], ..)]) -> [
       rule.error(
         message: "Case expression has only one branch, use a let binding instead",
         details: "A single-branch case without a guard is equivalent to a let binding.",

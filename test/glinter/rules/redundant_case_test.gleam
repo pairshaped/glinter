@@ -24,6 +24,20 @@ pub fn ignores_multi_branch_case_test() {
   let assert True = results == []
 }
 
+pub fn ignores_single_clause_with_multiple_pattern_alternatives_test() {
+  let results =
+    test_helpers.lint_string_rule(
+      "pub type Step { Continue(Int) Skip(Int) Stop(Int) }
+pub fn unwrap(step) {
+  case step {
+    Continue(a) | Skip(a) | Stop(a) -> a
+  }
+}",
+      redundant_case.rule(),
+    )
+  let assert True = results == []
+}
+
 pub fn ignores_single_branch_with_guard_test() {
   let results =
     test_helpers.lint_string_rule(
