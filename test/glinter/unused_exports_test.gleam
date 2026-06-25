@@ -495,9 +495,9 @@ pub fn helper() { Nil }",
   let assert True = results == []
 }
 
-pub fn internal_function_used_externally_flagged_as_misuse_test() {
-  // An @internal function that IS used by another module should be flagged
-  // because the annotation is likely a leftover.
+pub fn internal_function_used_externally_not_flagged_test() {
+  // @internal functions may be intentionally shared with other modules in
+  // the same package while staying hidden from package docs.
   let src_files = [
     parse(
       path: "src/myapp/users.gleam",
@@ -520,12 +520,7 @@ pub fn main() { users.helper() }",
       parsed_extra_consumers: [],
       severity: rule.Warning,
     )
-  let assert True = list.length(results) == 1
-  let assert [result] = results
-  let assert True =
-    result.message
-    == "Public function 'helper' has @internal but is used externally — annotation may be a leftover"
-  let assert True = result.file == "src/myapp/users.gleam"
+  let assert True = results == []
 }
 
 pub fn internal_function_not_used_not_flagged_as_misuse_test() {

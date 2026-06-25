@@ -44,17 +44,6 @@ fn has_internal(attributes: List(Attribute)) -> Bool {
 
 /// Collect public definitions that are NOT @internal (the "unused export" candidates).
 pub fn collect_pub_definitions(module: Module) -> List(PubDefinition) {
-  collect_pub_defs_filtered(module, internal: False)
-}
-
-fn collect_internal_pub_defs(module: Module) -> List(PubDefinition) {
-  collect_pub_defs_filtered(module, internal: True)
-}
-
-fn collect_pub_defs_filtered(
-  module: Module,
-  internal internal: Bool,
-) -> List(PubDefinition) {
   let fns =
     module.functions
     |> list.filter_map(fn(def) {
@@ -65,8 +54,8 @@ fn collect_pub_defs_filtered(
       case publicity, name {
         Public, "main" -> Error(Nil)
         Public, _ ->
-          case has_internal(attributes) == internal {
-            True ->
+          case has_internal(attributes) {
+            False ->
               Ok(
                 PubDefinition(
                   name: name,
@@ -75,35 +64,32 @@ fn collect_pub_defs_filtered(
                   constructors: [],
                 ),
               )
-            False -> Error(Nil)
+            True -> Error(Nil)
           }
         _, _ -> Error(Nil)
       }
     })
 
-  let constants = case internal {
-    True -> []
-    False ->
-      module.constants
-      |> list.filter_map(fn(def) {
-        let Definition(
-          _,
-          Constant(name: name, publicity: publicity, location: location, ..),
-        ) = def
-        case publicity {
-          Public ->
-            Ok(
-              PubDefinition(
-                name: name,
-                kind: PubConstant,
-                location: location,
-                constructors: [],
-              ),
-            )
-          _ -> Error(Nil)
-        }
-      })
-  }
+  let constants =
+    module.constants
+    |> list.filter_map(fn(def) {
+      let Definition(
+        _,
+        Constant(name: name, publicity: publicity, location: location, ..),
+      ) = def
+      case publicity {
+        Public ->
+          Ok(
+            PubDefinition(
+              name: name,
+              kind: PubConstant,
+              location: location,
+              constructors: [],
+            ),
+          )
+        _ -> Error(Nil)
+      }
+    })
 
   let types =
     module.custom_types
@@ -121,15 +107,15 @@ fn collect_pub_defs_filtered(
       case publicity {
         Public -> {
           let constructor_names = list.map(variants, fn(v) { v.name })
-          case has_internal(attributes) == internal {
-            True ->
+          case has_internal(attributes) {
+            False ->
               Ok(PubDefinition(
                 name: name,
                 kind: PubCustomType,
                 location: location,
                 constructors: constructor_names,
               ))
-            False -> Error(Nil)
+            True -> Error(Nil)
           }
         }
         _ -> Error(Nil)
@@ -145,8 +131,8 @@ fn collect_pub_defs_filtered(
       ) = def
       case publicity {
         Public ->
-          case has_internal(attributes) == internal {
-            True ->
+          case has_internal(attributes) {
+            False ->
               Ok(
                 PubDefinition(
                   name: name,
@@ -155,7 +141,7 @@ fn collect_pub_defs_filtered(
                   constructors: [],
                 ),
               )
-            False -> Error(Nil)
+            True -> Error(Nil)
           }
         _ -> Error(Nil)
       }
@@ -645,80 +631,45 @@ pub fn check_unused_exports(
   |> list.flat_map(fn(src) {
     let #(file_path, module_path, module) = src
     let pub_defs = collect_pub_definitions(module)
-    let internal_pub_defs = collect_internal_pub_defs(module)
     let other_files = list.filter(all_consumers, fn(f) { f.0 != file_path })
 
-    let unused_results =
-      pub_defs
-      |> list.filter_map(fn(pub_def) {
-        // A pub type required by a pub function's signature in the same
-        // module must stay public — skip it.
-        let is_required_by_interface = case pub_def.kind {
-          PubCustomType | PubTypeAlias ->
-            is_type_required_by_pub_interface(module, pub_def.name)
-          PubFunction | PubConstant -> False
-        }
-        let is_used =
-          is_required_by_interface
-          || list.any(other_files, fn(consumer) {
-            let #(_, _, consumer_module) = consumer
-            is_member_used_in(
-              consumer_module,
-              module_path,
-              pub_def.name,
-              pub_def.kind,
-              pub_def.constructors,
-            )
-          })
-        case is_used {
-          True -> Error(Nil)
-          False ->
-            Ok(rule.LintResult(
-              rule: "unused_exports",
-              severity: severity,
-              file: file_path,
-              location: pub_def.location,
-              message: kind_label(pub_def.kind)
-                <> " '"
-                <> pub_def.name
-                <> "' is never used by another module",
-              details: "",
-            ))
-        }
-      })
-
-    let misuse_results =
-      internal_pub_defs
-      |> list.filter_map(fn(pub_def) {
-        let is_used =
-          list.any(other_files, fn(consumer) {
-            let #(_, _, consumer_module) = consumer
-            is_member_used_in(
-              consumer_module,
-              module_path,
-              pub_def.name,
-              pub_def.kind,
-              pub_def.constructors,
-            )
-          })
-        case is_used {
-          False -> Error(Nil)
-          True ->
-            Ok(rule.LintResult(
-              rule: "unused_exports",
-              severity: severity,
-              file: file_path,
-              location: pub_def.location,
-              message: kind_label(pub_def.kind)
-                <> " '"
-                <> pub_def.name
-                <> "' has @internal but is used externally — annotation may be a leftover",
-              details: "",
-            ))
-        }
-      })
-
-    list.append(unused_results, misuse_results)
+    pub_defs
+    |> list.filter_map(fn(pub_def) {
+      // A pub type required by a pub function's signature in the same
+      // module must stay public — skip it.
+      let is_required_by_interface = case pub_def.kind {
+        PubCustomType | PubTypeAlias ->
+          is_type_required_by_pub_interface(module, pub_def.name)
+        PubFunction | PubConstant -> False
+      }
+      let is_used =
+        is_required_by_interface
+        || list.any(other_files, fn(consumer) {
+          let #(_, _, consumer_module) = consumer
+          is_member_used_in(
+            consumer_module,
+            module_path,
+            pub_def.name,
+            pub_def.kind,
+            pub_def.constructors,
+          )
+        })
+      case is_used {
+        True -> Error(Nil)
+        False ->
+          Ok(rule.LintResult(
+            rule: "unused_exports",
+            severity: severity,
+            file: file_path,
+            location: pub_def.location,
+            message: kind_label(pub_def.kind)
+              <> " '"
+              <> pub_def.name
+              <> "' is never used by another module",
+            details: "",
+          ))
+      }
+    })
   })
 }
 

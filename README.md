@@ -118,7 +118,7 @@ These rules enforce consistency and catch patterns that make code harder to read
 
 ### Cross-Module
 
-- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded. Definitions annotated with `@internal` are skipped (they're intentionally public but hidden from docs). Conversely, `@internal` that IS referenced externally is flagged as a leftover annotation, and `@internal` on a private definition is flagged as ineffective. Note: Gleam has FFI boundaries, so functions called from Erlang/JS code outside the project may be flagged as unused.
+- **unused_exports** (warning): flags `pub` functions, constants, and types never referenced from another module. Test files count as consumers, `main` is excluded. Definitions annotated with `@internal` are skipped because they're intentionally public but hidden from docs. Note: Gleam has FFI boundaries, so functions called from Erlang/JS code outside the project may be flagged as unused.
 
 ### FFI
 
