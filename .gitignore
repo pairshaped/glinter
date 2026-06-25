@@ -1,4 +1,5 @@
 .worktrees/
+.DS_Store
 *.beam
 *.ez
 /build
