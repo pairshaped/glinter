@@ -41,17 +41,25 @@ fn run_module_rules(
       let results =
         active_rules
         |> list.flat_map(fn(r) {
-          rule.run_on_module(rule: r, module: module, source: source_text)
-          |> list.map(fn(err) {
-            LintResult(
-              rule: rule.name(r),
-              severity: rule.default_severity(r),
-              file: display_path,
-              location: rule.error_location(err),
-              message: rule.error_message(err),
-              details: rule.error_details(err),
-            )
-          })
+          case
+            config.resolve_severity(config, rule.name(r), fn() {
+              Ok(rule.default_severity(r))
+            })
+          {
+            Error(Nil) -> []
+            Ok(rule_severity) ->
+              rule.run_on_module(rule: r, module: module, source: source_text)
+              |> list.map(fn(err) {
+                LintResult(
+                  rule: rule.name(r),
+                  severity: rule_severity,
+                  file: display_path,
+                  location: rule.error_location(err),
+                  message: rule.error_message(err),
+                  details: rule.error_details(err),
+                )
+              })
+          }
         })
 
       apply_annotations(
@@ -82,24 +90,31 @@ fn run_project_rules(
   rules
   |> list.flat_map(fn(r) {
     let rule_name = rule.name(r)
-    let severity = rule.default_severity(r)
 
-    rule.run_on_project(rule: r, files: file_tuples)
-    |> list.filter_map(fn(tagged) {
-      let #(file, err) = tagged
-      case ignore.is_rule_ignored(file, rule_name, config.ignore) {
-        True -> Error(Nil)
-        False ->
-          Ok(LintResult(
-            rule: rule_name,
-            severity: severity,
-            file: file,
-            location: rule.error_location(err),
-            message: rule.error_message(err),
-            details: rule.error_details(err),
-          ))
-      }
-    })
+    case
+      config.resolve_severity(config, rule_name, fn() {
+        Ok(rule.default_severity(r))
+      })
+    {
+      Error(Nil) -> []
+      Ok(rule_severity) ->
+        rule.run_on_project(rule: r, files: file_tuples)
+        |> list.filter_map(fn(tagged) {
+          let #(file, err) = tagged
+          case ignore.is_rule_ignored(file, rule_name, config.ignore) {
+            True -> Error(Nil)
+            False ->
+              Ok(LintResult(
+                rule: rule_name,
+                severity: rule_severity,
+                file: file,
+                location: rule.error_location(err),
+                message: rule.error_message(err),
+                details: rule.error_details(err),
+              ))
+          }
+        })
+    }
   })
 }
 
