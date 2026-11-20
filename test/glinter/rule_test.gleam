@@ -303,11 +303,14 @@ pub fn project_rule_runs_across_files_test() {
     |> rule.with_final_project_evaluation(evaluator: fn(total) {
       case total > 2 {
         True -> [
-          #("", rule.error(
-            message: "Too many imports across project",
-            details: "",
-            location: glance.Span(start: 0, end: 0),
-          )),
+          #(
+            "",
+            rule.error(
+              message: "Too many imports across project",
+              details: "",
+              location: glance.Span(start: 0, end: 0),
+            ),
+          ),
         ]
         False -> []
       }
@@ -327,7 +330,8 @@ pub fn project_rule_runs_across_files_test() {
     ])
   let assert True = list.length(errors) == 1
   let assert [#(file, err)] = errors
-  let assert True = file == ""  // final project evaluation, no specific file
+  let assert True = file == ""
+  // final project evaluation, no specific file
   let assert True = rule.error_message(err) == "Too many imports across project"
 }
 
