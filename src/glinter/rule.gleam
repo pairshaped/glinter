@@ -77,6 +77,7 @@
 ////   `src/glinter/unused_exports.gleam`, not built with the project rule builder)
 //// - `missing_labels.gleam`: custom `module_rule_from_fn` for pre-scanning
 ////
+
 import glance
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -117,7 +118,8 @@ pub opaque type Rule {
   ProjectRule(
     name: String,
     default_severity: Severity,
-    run: fn(List(#(String, glance.Module, String))) -> List(#(String, RuleError)),
+    run: fn(List(#(String, glance.Module, String))) ->
+      List(#(String, RuleError)),
   )
 }
 

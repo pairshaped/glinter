@@ -5,6 +5,7 @@ import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
+import glinter/annotation
 import glinter/config
 import glinter/ffi_usage
 import glinter/ignore
@@ -38,7 +39,6 @@ import glinter/rules/unnecessary_variable
 import glinter/rules/unqualified_import
 import glinter/rules/unwrap_used
 import glinter/runner
-import glinter/annotation
 import glinter/source
 import glinter/unused_exports
 import simplifile
@@ -119,8 +119,7 @@ fn run_with_args_and_clock(
   // Scan-only paths: parsed for cross-module analysis (e.g. usage detection),
   // never reported on. Used to teach glinter about callers in generated client
   // packages that live outside the linted source tree.
-  let scan_only_paths =
-    list.map(cfg.scan_paths, fn(p) { project_prefix <> p })
+  let scan_only_paths = list.map(cfg.scan_paths, fn(p) { project_prefix <> p })
 
   // Discover files (absolute paths), then make relative for ignore matching
   // and cleaner output

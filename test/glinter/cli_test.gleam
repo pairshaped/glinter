@@ -1,4 +1,5 @@
 import glance
+import gleam/list
 import gleam/string
 import glinter
 import glinter/rule
@@ -90,6 +91,117 @@ warnings_as_errors = true
 
   let assert 1 = result.exit_code
   let assert True = string.contains(result.output, contain: "[error] echo")
+}
+
+pub fn run_with_args_honors_module_rule_severity_test() {
+  let severity_cases = [
+    #(
+      "module-severity-unwrap-error",
+      "unwrap_used",
+      "error",
+      "import gleam/result\npub fn main() -> Int { result.unwrap(Ok(1), 0) }",
+      1,
+    ),
+    #(
+      "module-severity-echo-error",
+      "echo",
+      "error",
+      "pub fn main() -> Int { echo 1 }",
+      1,
+    ),
+    #(
+      "module-severity-todo-warning",
+      "avoid_todo",
+      "warning",
+      "pub fn main() -> Int { todo as \"later\" }",
+      0,
+    ),
+  ]
+
+  list.each(severity_cases, fn(severity_case) {
+    let #(
+      project_name,
+      rule_name,
+      configured_severity,
+      source_text,
+      expected_exit_code,
+    ) = severity_case
+    let dir =
+      write_project_with_config(
+        project_name,
+        "[tools.glinter.rules]\n"
+          <> rule_name
+          <> " = \""
+          <> configured_severity
+          <> "\"\n",
+        source_text,
+      )
+
+    let run_result =
+      glinter.run_with_args(args: ["--project", dir], extra_rules: [])
+
+    let assert #(True, True) = #(
+      run_result.exit_code == expected_exit_code,
+      string.contains(
+        run_result.output,
+        contain: "[" <> configured_severity <> "] " <> rule_name,
+      ),
+    )
+  })
+}
+
+pub fn run_with_args_honors_project_rule_severity_test() {
+  let severity_cases = [
+    #("project-severity-off-error", rule.Off, "error", 1),
+    #("project-severity-warning-error", rule.Warning, "error", 1),
+    #("project-severity-error-warning", rule.Error, "warning", 0),
+  ]
+
+  list.each(severity_cases, fn(severity_case) {
+    let #(
+      project_name,
+      default_severity,
+      configured_severity,
+      expected_exit_code,
+    ) = severity_case
+    let project_rule =
+      rule.new_project(name: "project_severity", initial: Nil)
+      |> rule.with_project_default_severity(severity: default_severity)
+      |> rule.with_final_project_evaluation(evaluator: fn(_project_context) {
+        [
+          #(
+            "src/app.gleam",
+            rule.error(
+              message: "Project severity finding",
+              details: "",
+              location: glance.Span(start: 0, end: 0),
+            ),
+          ),
+        ]
+      })
+      |> rule.to_project_rule()
+    let dir =
+      write_project_with_config(
+        project_name,
+        "[tools.glinter.rules]\nproject_severity = \""
+          <> configured_severity
+          <> "\"\n",
+        "pub fn main() -> Int { 1 }",
+      )
+
+    let run_result =
+      glinter.run_with_args(args: ["--project", dir], extra_rules: [
+        project_rule,
+      ])
+
+    let assert #(True, True) = #(
+      run_result.exit_code == expected_exit_code,
+      string.contains(
+        run_result.output,
+        contain: "[" <> configured_severity <> "] project_severity",
+      ),
+    )
+  })
 }
 
 pub fn run_with_args_honors_include_config_test() {
